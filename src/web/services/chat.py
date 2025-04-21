@@ -19,12 +19,10 @@ def create_thread():
 
     return None
 
-def chat(aks_cluster_name,
-         thread_id,
+def chat(thread_id,
          content):
 
-    chat_input = ChatInput(aks_cluster_name=aks_cluster_name,
-                           thread_id=thread_id,
+    chat_input = ChatInput(thread_id=thread_id,
                            content=content)
 
     response = requests.post(url=f"{api_base_url}/v1/chat",
