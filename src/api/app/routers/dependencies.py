@@ -1,3 +1,4 @@
+from functools import lru_cache
 from app.config import get_settings
 from azure.identity.aio import DefaultAzureCredential
 from semantic_kernel.agents import AzureAIAgent, AzureAIAgentSettings
@@ -6,7 +7,7 @@ from fastapi import Depends
 from typing import Annotated
 from pydantic import SecretStr
 
-async def create_azure_ai_client():
+def create_azure_ai_client():
     ai_agent_settings = AzureAIAgentSettings(
         model_deployment_name=get_settings().azure_openai_model_deployment_name,
         project_connection_string=SecretStr(get_settings().azure_ai_agent_project_connection_string or "")
@@ -21,6 +22,10 @@ async def create_azure_ai_client():
 
     return client
 
-AzureAIClient = Annotated[AIProjectClient, Depends(create_azure_ai_client)]
+@lru_cache
+def get_create_azure_ai_client():
+    return create_azure_ai_client()
+
+AzureAIClient = Annotated[AIProjectClient, Depends(get_create_azure_ai_client)]
 
 __all__ = ["AzureAIClient"]
