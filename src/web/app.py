@@ -19,7 +19,7 @@ st.set_page_config(
 with open('assets/css/style.css', encoding='utf-8') as f:
     st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html = True)
 
-st.image("assets/images/aks.svg", width=192)
+#st.image("assets/images/aks.svg", width=192)
 st.title("AI Assistant")
 
 # Initialize session state
@@ -29,13 +29,17 @@ if "messages" not in st.session_state:
 if "thread_id" not in st.session_state:
     with st.spinner("Creating thread..."):
         thread_id = create_thread()
-        st.session_state.thread_id = thread_id
+        st.session_state.thread_id = thread_id        
 
 if "thread_id" in st.session_state:
+    with st.sidebar:
+        st.subheader(body="Thread ID", divider=True)
+        st.write(st.session_state.thread_id)
+
     # Display chat messages from history on app rerun
     for message in st.session_state.messages:
         with st.chat_message(message.role):
-            #st.write(output_formatter(message.content))
+            #st.write("".join(list(output_formatter(message.content))))
             st.write(message.content)
 
     # Accept user input
@@ -54,6 +58,7 @@ if "thread_id" in st.session_state:
 
                 with st.empty():
                     full_response = st.write_stream(response)
+                    #full_response = st.write_stream(output_formatter(response))
                     #st.write(output_formatter(full_response))
 
         st.session_state.messages.add_assistant_message(full_response)

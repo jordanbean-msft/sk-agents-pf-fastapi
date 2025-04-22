@@ -10,6 +10,8 @@ from semantic_kernel.processes import ProcessBuilder
 from semantic_kernel.processes.kernel_process import KernelProcessStep, KernelProcessStepContext, KernelProcessStepState
 from semantic_kernel.contents.chat_message_content import ChatMessageContent
 from semantic_kernel.agents import AzureAIAgent, AzureAIAgentSettings
+from semantic_kernel.contents import StreamingFileReferenceContent
+
 
 from azure.identity.aio import DefaultAzureCredential
 
@@ -84,14 +86,18 @@ async def get_image(thread_input: ChatGetImageInput, azure_ai_client: AzureAICli
 
         return Response(content=image_data, media_type="image/png")
 
-async def thread_generator(thread):
-    async for message in thread:
-        yield {"role": message.role, "content": message.content}
-
 @tracer.start_as_current_span(name="chat")
 @router.post("/chat")
 async def post_chat(chat_input: ChatInput, azure_ai_client: AzureAIClient):
     return StreamingResponse(build_chat_results(chat_input, azure_ai_client))
+
+# intermediate_result: list[ChatMessageContent] = []
+
+# async def handle_streaming_intermediate_steps(message: ChatMessageContent) -> None:
+#     intermediate_result.append(message)
+
+#     # Process the intermediate message
+#     logger.info(f"Intermediate message: {message.content}")
 
 async def build_chat_results(chat_input: ChatInput, azure_ai_client: AzureAIClient):
     with tracer.start_as_current_span(name="build_chat_results"):
@@ -110,11 +116,40 @@ async def build_chat_results(chat_input: ChatInput, azure_ai_client: AzureAIClie
             #     ),
             #     plugin_name="alarm_plugin"
             # )               
-
-            async for content in alarm_agent.invoke_stream(
+            is_code = False
+            last_role = None
+            file_ids: list[str] = []
+            async for response in alarm_agent.invoke_stream(
                     thread_id=chat_input.thread_id,
-                    messages=[ChatMessageContent(role=msg.role, content=msg.content) for msg in chat_input.content.messages]):
-                yield content.content.content
+                    messages=[ChatMessageContent(role=msg.role, content=msg.content) for msg in chat_input.content.messages],
+                    #on_intermediate_message=handle_streaming_intermediate_steps):
+            ):
+                current_is_code = response.metadata.get("code", False)
+
+                if current_is_code:
+                    if not is_code:
+                        yield "\n\n```python"
+                        is_code = True
+                    yield response.content.content
+                else:
+                    if is_code:
+                        yield "\n```"
+                        is_code = False
+                        last_role = None
+                    if hasattr(response, "role") and response.role is not None and last_role != response.role:
+                        #print(f"\n# {response.role}: ", end="", flush=True)
+                        last_role = response.role
+                    yield response.content.content
+                file_ids.extend([
+                    item.file_id for item in response.items if isinstance(item, StreamingFileReferenceContent)
+                ])
+                thread = response.thread
+            if is_code:
+                yield "```\n"
+            print()
+
+            #await download_response_image(agent, file_ids)
+            #file_ids.clear()
             
             await azure_ai_client.agents.delete_agent(agent_id=alarm_agent.id)
         except Exception as e:
