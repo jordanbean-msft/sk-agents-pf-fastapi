@@ -7,6 +7,7 @@ import streamlit as st
 
 from semantic_kernel.contents.chat_history import ChatHistory
 from semantic_kernel.contents.utils.author_role import AuthorRole
+from semantic_kernel.contents import ImageContent, TextContent, ChatMessageContent
 
 from models.chat_output import ChatOutput, deserialize_chat_output
 from models.content_type_enum import ContentTypeEnum
@@ -49,8 +50,13 @@ if "thread_id" in st.session_state:
     # Display chat messages from history on app rerun
     for message in st.session_state.messages:
         with st.chat_message(message.role):
-            #st.write("".join(list(output_formatter(message.content))))
-            st.write(message.content)
+            for item in message.items:
+                if isinstance(item, TextContent):
+                    st.write(item.text)
+                elif isinstance(item, ImageContent):
+                    st.image(item.data, use_container_width=True)
+                else:
+                    raise TypeError(f"Unknown content type: {type(item)}")
 
     # Accept user input
     if question := st.chat_input(
@@ -68,42 +74,42 @@ if "thread_id" in st.session_state:
         with st.chat_message("assistant"):
             with st.spinner("Reticulating splines..."):
                 response = chat(thread_id=st.session_state.thread_id,
-                                content=st.session_state.messages)
+                                #content=st.session_state.messages)
+                                content=question)
 
                 with st.empty():
                     full_delta_content = ""
+                    images = []
                     for chunk in response:
-                        #delta = ChatOutput.model_validate_json(chunk)
                         delta = deserialize_chat_output(json.loads(chunk))
 
-                        if delta and delta.content_type == ContentTypeEnum.MARKDOWN and delta.content:
-                            full_delta_content += delta.content
+                        if delta and delta.content:
+                            if delta.content_type == ContentTypeEnum.MARKDOWN:
+                                full_delta_content += delta.content
 
-                            # Display the content incrementally
-                            if delta.content.startswith("```python"):
-                                st.code(full_delta_content, language="python")
-                            elif delta.content.startswith("```"):
-                                st.code(full_delta_content)
-                            else:
-                                st.markdown(full_delta_content)
+                                # Display the content incrementally
+                                if delta.content.startswith("```python"):
+                                    st.code(full_delta_content, language="python")
+                                elif delta.content.startswith("```"):
+                                    st.code(full_delta_content)
+                                else:
+                                    st.markdown(full_delta_content)                                    
+                            elif delta.content_type == ContentTypeEnum.FILE:
+                                image = get_image(file_id=delta.content)
+                                st.image(image=image, use_container_width=True)
+                                images.append(image)                                
 
-                            # Uncomment the following line to display the entire response at once
-                            #st.write(full_response)
-                    #full_response = st.write_stream(response)
+                    st.session_state.messages.add_assistant_message(full_delta_content)
 
-                    #full_response = st.write_stream(output_formatter(response))
-                    #st.write(output_formatter(full_response))
-
-        st.session_state.messages.add_assistant_message(full_delta_content)
-
-        # image_contents = get_image_contents(thread_id=st.session_state.thread_id)
-
-        # for image_content in image_contents:
-        #     if image_content["type"] == "image_file":
-        #         image = get_image(file_id=image_content["file_id"])
-
-        #         st.image(image=image, use_container_width=True)
-
+                    for image in images:
+                        content = ChatMessageContent(
+                                    role=AuthorRole.ASSISTANT,
+                                    items=[
+                                        ImageContent(data=image)
+                                    ]    
+                                )
+                        st.session_state.messages.add_message(content)
+       
 if st.session_state["waiting_for_response"]:
     st.session_state["waiting_for_response"] = False
     st.rerun()

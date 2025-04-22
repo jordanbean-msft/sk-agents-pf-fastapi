@@ -118,11 +118,16 @@ async def build_chat_results(chat_input: ChatInput, azure_ai_client: AzureAIClie
             #         thread_id=chat_input.thread_id
             #     ),
             #     plugin_name="alarm_plugin"
-            # )               
+            # )           
+            thread = await azure_ai_client.agents.get_thread(thread_id=chat_input.thread_id)
+
+            if thread is None:
+                raise RuntimeError(f"Thread ID '{chat_input.thread_id}' not found.")
+                 
             async for response in alarm_agent.invoke_stream(
-                    thread_id=chat_input.thread_id,
-                    messages=[ChatMessageContent(role=msg.role, content=msg.content) for msg in chat_input.content.messages],
-                    on_intermediate_message=handle_streaming_intermediate_steps
+                    thread_id=thread
+                    #messages=[ChatMessageContent(role=msg.role, content=msg.content) for msg in chat_input.content.messages]
+                    messages=chat_input.content
             ):
                 for item in response.items:
                     if isinstance(item, StreamingTextContent):
