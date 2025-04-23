@@ -94,14 +94,6 @@ async def get_image(thread_input: ChatGetImageInput, azure_ai_client: AzureAICli
 async def post_chat(chat_input: ChatInput, azure_ai_client: AzureAIClient):
     return StreamingResponse(build_chat_results(chat_input, azure_ai_client))
 
-intermediate_result: list[ChatMessageContent] = []
-
-async def handle_streaming_intermediate_steps(message: ChatMessageContent) -> None:
-    intermediate_result.append(message)
-
-    # Process the intermediate message
-    #logger.info(f"Intermediate message: {message.content}")
-
 async def build_chat_results(chat_input: ChatInput, azure_ai_client: AzureAIClient):
     with tracer.start_as_current_span(name="build_chat_results"):
         alarm_agent = None
@@ -119,22 +111,7 @@ async def build_chat_results(chat_input: ChatInput, azure_ai_client: AzureAIClie
             #     ),
             #     plugin_name="alarm_plugin"
             # )           
-            thread_messages = await get_thread(ChatGetThreadInput(thread_id=chat_input.thread_id), azure_ai_client)
-
-            messages = []
-
-            for message in thread_messages:
-                msg = ThreadMessageOptions(
-                    content=message['content'],
-                    role=message['role']
-                )
-                messages.append(msg)
-
-            thread = AzureAIAgentThread(
-                client=alarm_agent.client,
-                thread_id=chat_input.thread_id,
-                messages=messages
-            )
+            thread = await get_agent_thread(chat_input, azure_ai_client, alarm_agent)
                  
             async for response in alarm_agent.invoke_stream(
                     thread=thread,
@@ -168,3 +145,23 @@ async def build_chat_results(chat_input: ChatInput, azure_ai_client: AzureAIClie
 
             if alarm_agent is not None:
                 await azure_ai_client.agents.delete_agent(agent_id=alarm_agent.id)
+
+async def get_agent_thread(chat_input, azure_ai_client, alarm_agent):
+    thread_messages = await get_thread(ChatGetThreadInput(thread_id=chat_input.thread_id), azure_ai_client)
+
+    messages = []
+
+    for message in thread_messages:
+        msg = ThreadMessageOptions(
+                    content=message['content'],
+                    role=message['role']
+                )
+        messages.append(msg)
+
+    thread = AzureAIAgentThread(
+                client=alarm_agent.client,
+                thread_id=chat_input.thread_id,
+                messages=messages
+            )
+    
+    return thread
