@@ -11,10 +11,10 @@ from semantic_kernel.contents.chat_message_content import ChatMessageContent
 from semantic_kernel.processes import ProcessBuilder
 from semantic_kernel.processes.kernel_process import KernelProcessStep, KernelProcessStepContext, KernelProcessStepState
 from semantic_kernel.contents.chat_message_content import ChatMessageContent
-from semantic_kernel.agents import AzureAIAgent, AzureAIAgentSettings
+from semantic_kernel.agents import AzureAIAgent, AzureAIAgentSettings, AzureAIAgentThread
 from semantic_kernel.contents import StreamingFileReferenceContent
 from semantic_kernel.contents import StreamingTextContent
-
+from azure.ai.projects.models import ThreadMessageOptions
 
 from azure.identity.aio import DefaultAzureCredential
 
@@ -119,14 +119,25 @@ async def build_chat_results(chat_input: ChatInput, azure_ai_client: AzureAIClie
             #     ),
             #     plugin_name="alarm_plugin"
             # )           
-            thread = await azure_ai_client.agents.get_thread(thread_id=chat_input.thread_id)
+            thread_messages = await get_thread(ChatGetThreadInput(thread_id=chat_input.thread_id), azure_ai_client)
 
-            if thread is None:
-                raise RuntimeError(f"Thread ID '{chat_input.thread_id}' not found.")
+            messages = []
+
+            for message in thread_messages:
+                msg = ThreadMessageOptions(
+                    content=message['content'],
+                    role=message['role']
+                )
+                messages.append(msg)
+
+            thread = AzureAIAgentThread(
+                client=alarm_agent.client,
+                thread_id=chat_input.thread_id,
+                messages=messages
+            )
                  
             async for response in alarm_agent.invoke_stream(
-                    thread_id=thread
-                    #messages=[ChatMessageContent(role=msg.role, content=msg.content) for msg in chat_input.content.messages]
+                    thread=thread,
                     messages=chat_input.content
             ):
                 for item in response.items:
