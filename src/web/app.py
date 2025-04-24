@@ -1,9 +1,15 @@
 import json
 import time
 import asyncio
+import threading
+import pyaudio
+import time
+from services.chat import realtime
+
 
 import orjson
 import streamlit as st
+from streamlit_extras.bottom_container import bottom
 
 from semantic_kernel.contents.chat_history import ChatHistory
 from semantic_kernel.contents.utils.author_role import AuthorRole
@@ -11,7 +17,7 @@ from semantic_kernel.contents import ImageContent, TextContent, ChatMessageConte
 
 from models.chat_output import ChatOutput, deserialize_chat_output
 from models.content_type_enum import ContentTypeEnum
-from services.chat import chat, get_thread, get_image, get_image_contents, create_thread
+from services.chat import chat, get_thread, get_image, get_image_contents, create_thread, realtime
 from utilities import output_formatter
 
 def _handle_user_interaction():
@@ -24,7 +30,7 @@ st.set_page_config(
     page_title="AI Assistant",
     page_icon=":robot_face:",
     layout="centered",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 with open('assets/css/style.css', encoding='utf-8') as f:
@@ -42,6 +48,39 @@ if "thread_id" not in st.session_state:
         thread_id = create_thread()
         st.session_state.thread_id = thread_id        
 
+def render_response(response):
+    full_delta_content = ""
+    images = []
+    for chunk in response:
+        delta = deserialize_chat_output(json.loads(chunk))
+
+        if delta and delta.content:
+            if delta.content_type == ContentTypeEnum.MARKDOWN:
+                full_delta_content += delta.content
+
+                # Display the content incrementally
+                if delta.content.startswith("```python"):
+                    st.code(full_delta_content, language="python")
+                elif delta.content.startswith("```"):
+                    st.code(full_delta_content)
+                else:
+                    st.markdown(full_delta_content)                                    
+            elif delta.content_type == ContentTypeEnum.FILE:
+                image = get_image(file_id=delta.content)
+                st.image(image=image, use_container_width=True)
+                images.append(image)                                
+
+    st.session_state.messages.add_assistant_message(full_delta_content)
+
+    for image in images:
+        content = ChatMessageContent(
+                                    role=AuthorRole.ASSISTANT,
+                                    items=[
+                                        ImageContent(data=image)
+                                    ]    
+                                )
+        st.session_state.messages.add_message(content)
+
 if "thread_id" in st.session_state:
     with st.sidebar:
         st.subheader(body="Thread ID", divider=True)
@@ -57,12 +96,13 @@ if "thread_id" in st.session_state:
                     st.image(item.data, use_container_width=True)
                 else:
                     raise TypeError(f"Unknown content type: {type(item)}")
-
-    # Accept user input
+    
+    
+   
     if question := st.chat_input(
         placeholder="Ask me...",
         on_submit=_handle_user_interaction,
-        disabled=st.session_state["waiting_for_response"]
+        disabled=st.session_state["waiting_for_response"],
     ):
         # Add user message to chat history
         st.session_state.messages.add_user_message(question)
@@ -74,41 +114,23 @@ if "thread_id" in st.session_state:
         with st.chat_message("assistant"):
             with st.spinner("Reticulating splines..."):
                 response = chat(thread_id=st.session_state.thread_id,
-                                #content=st.session_state.messages)
                                 content=question)
 
                 with st.empty():
-                    full_delta_content = ""
-                    images = []
-                    for chunk in response:
-                        delta = deserialize_chat_output(json.loads(chunk))
+                    render_response(response)
 
-                        if delta and delta.content:
-                            if delta.content_type == ContentTypeEnum.MARKDOWN:
-                                full_delta_content += delta.content
-
-                                # Display the content incrementally
-                                if delta.content.startswith("```python"):
-                                    st.code(full_delta_content, language="python")
-                                elif delta.content.startswith("```"):
-                                    st.code(full_delta_content)
-                                else:
-                                    st.markdown(full_delta_content)                                    
-                            elif delta.content_type == ContentTypeEnum.FILE:
-                                image = get_image(file_id=delta.content)
-                                st.image(image=image, use_container_width=True)
-                                images.append(image)                                
-
-                    st.session_state.messages.add_assistant_message(full_delta_content)
-
-                    for image in images:
-                        content = ChatMessageContent(
-                                    role=AuthorRole.ASSISTANT,
-                                    items=[
-                                        ImageContent(data=image)
-                                    ]    
-                                )
-                        st.session_state.messages.add_message(content)
+    if audio := st.audio_input("Record audio"):
+        full_delta_content = ""
+        response = realtime(thread_id=st.session_state.thread_id,
+                                  content=audio.read())
+        with st.empty():
+            for chunk in response:
+                full_delta_content += str(chunk)
+            
+                with st.chat_message(AuthorRole.USER):
+                    st.markdown(full_delta_content)
+                    
+        st.session_state.messages.add_user_message(full_delta_content)
        
 if st.session_state["waiting_for_response"]:
     st.session_state["waiting_for_response"] = False

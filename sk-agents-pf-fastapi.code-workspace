@@ -10,5 +10,17 @@
 			"path": "src/web"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"terminal.integrated.profiles.windows": {
+			"PowerShell": {
+				"source": "PowerShell",
+				"icon": "terminal-powershell",
+				"args": [
+					"-NoExit",
+					"-Command",
+					"$venvPath = \".venv\\Scripts\\Activate.ps1\"; if (Test-Path $venvPath) {& $venvPath}"
+				]
+			}
+		}
+	}
 }
