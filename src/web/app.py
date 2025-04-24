@@ -59,12 +59,12 @@ def render_response(response):
                 full_delta_content += delta.content
 
                 # Display the content incrementally
-                if delta.content.startswith("```python"):
-                    st.code(full_delta_content, language="python")
-                elif delta.content.startswith("```"):
-                    st.code(full_delta_content)
-                else:
-                    st.markdown(full_delta_content)                                    
+                # if delta.content.startswith("```python"):
+                #     st.code(full_delta_content, language="python")
+                # elif delta.content.startswith("```"):
+                #     st.code(full_delta_content)
+                # else:
+                st.markdown(full_delta_content)                                    
             elif delta.content_type == ContentTypeEnum.FILE:
                 image = get_image(file_id=delta.content)
                 st.image(image=image, use_container_width=True)
