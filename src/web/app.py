@@ -81,11 +81,19 @@ def render_response(response):
                                 )
         st.session_state.messages.add_message(content)
 
-if "thread_id" in st.session_state:
-    with st.sidebar:
-        st.subheader(body="Thread ID", divider=True)
-        st.write(st.session_state.thread_id)
+@st.fragment
+def response(question):
+    # Display assistant response in chat message container
+    with st.chat_message(AuthorRole.ASSISTANT):
+        with st.spinner("Reticulating splines..."):
+            response = chat(thread_id=st.session_state.thread_id,
+                            content=question)
 
+            with st.empty():
+                render_response(response)
+
+@st.fragment
+def display_chat_history():
     # Display chat messages from history on app rerun
     for message in st.session_state.messages:
         with st.chat_message(message.role):
@@ -96,8 +104,30 @@ if "thread_id" in st.session_state:
                     st.image(item.data, use_container_width=True)
                 else:
                     raise TypeError(f"Unknown content type: {type(item)}")
-    
-    
+
+@st.fragment
+def audio_chat():
+    if audio := st.audio_input("Record audio"):
+        question_text = ""
+        with st.chat_message(AuthorRole.USER):
+            with st.spinner("Transcribing..."):
+                audio_transcription = transcribe(content=audio)
+
+                with st.empty():
+                    question_text = str(audio_transcription)
+                    
+                    st.markdown(question_text)
+                            
+                st.session_state.messages.add_user_message(question_text)
+
+        response(question_text)
+
+if "thread_id" in st.session_state:
+    with st.sidebar:
+        st.subheader(body="Thread ID", divider=True)
+        st.write(st.session_state.thread_id)
+
+    display_chat_history()
    
     if question := st.chat_input(
         placeholder="Ask me...",
@@ -110,25 +140,9 @@ if "thread_id" in st.session_state:
         with st.chat_message(AuthorRole.USER):
             st.markdown(question)
 
-        # Display assistant response in chat message container
-        with st.chat_message("assistant"):
-            with st.spinner("Reticulating splines..."):
-                response = chat(thread_id=st.session_state.thread_id,
-                                content=question)
-
-                with st.empty():
-                    render_response(response)
-
-    if audio := st.audio_input("Record audio"):
-        full_delta_content = ""
-        response = transcribe(content=audio)
-        with st.empty():
-            full_delta_content = str(response)
-            
-            with st.chat_message(AuthorRole.USER):
-                st.markdown(full_delta_content)
-                    
-        st.session_state.messages.add_user_message(full_delta_content)
+        response(question)
+    # with bottom():
+    #     audio_chat()
        
 if st.session_state["waiting_for_response"]:
     st.session_state["waiting_for_response"] = False
