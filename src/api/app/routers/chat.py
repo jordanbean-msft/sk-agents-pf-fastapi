@@ -2,8 +2,10 @@ import base64
 import json
 import logging
 from typing import Any, cast
+import tempfile
+import shutil
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, WebSocketException
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, WebSocketException, UploadFile
 from fastapi.responses import Response, StreamingResponse
 from opentelemetry import trace
 
@@ -24,6 +26,7 @@ from semantic_kernel.connectors.ai.open_ai import (
 from semantic_kernel.contents import RealtimeAudioEvent, RealtimeTextEvent
 from semantic_kernel.contents.audio_content import AudioContent
 from azure.ai.projects.models import ThreadMessageOptions
+from semantic_kernel.connectors.ai.open_ai.services.azure_audio_to_text import AzureAudioToText
 
 from azure.identity.aio import DefaultAzureCredential
 from websockets import ConnectionClosed
@@ -176,6 +179,28 @@ async def get_agent_thread(chat_input, azure_ai_client, alarm_agent):
     
     return thread
 
+@router.post("/transcribe")
+async def transcribe(file: UploadFile, azure_ai_client: AzureAIClient):
+    client = await azure_ai_client.inference.get_azure_openai_client(
+        api_version=get_settings().azure_openai_transcription_model_api_version
+    )
+
+    audio_to_text_service = AzureAudioToText(
+         async_client=client,
+         deployment_name=get_settings().azure_openai_transcription_model_deployment_name
+    )
+
+    # Save the uploaded file to a temporary file and get its path
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
+        shutil.copyfileobj(file.file, tmp)
+        tmp_path = tmp.name
+
+    audio_content = AudioContent.from_audio_file(tmp_path)
+
+    user_input = await audio_to_text_service.get_text_content(audio_content=audio_content)
+
+    return user_input.text
+
 @router.websocket('/realtime')
 async def realtime_endpoint(websocket: WebSocket,azure_ai_client: AzureAIClient):
     await websocket.accept()
@@ -189,13 +214,31 @@ async def realtime_endpoint(websocket: WebSocket,azure_ai_client: AzureAIClient)
                     modalities=['audio'],
                 )
                 
+                # client = await azure_ai_client.inference.get_azure_openai_client(
+                #     api_version="2025-03-01-preview"
+                # )
+
+                # audio_to_text_service = AzureAudioToText(
+                #      async_client=client,
+                #      deployment_name="gpt-4o-mini-transcribe"
+                # )
+
+                # audio_content = AudioContent(
+                #     data=base64.b64encode(cast(Any, audio_bytes)).decode("utf-8")
+                # )
+
+                # user_input = await audio_to_text_service.get_text_content(audio_content=audio_content)
+
+                # await websocket.send_text(user_input.text)
+
                 client = await azure_ai_client.inference.get_azure_openai_client(
                     api_version="2024-10-01-preview"
                 )
 
                 azure_realtime_websocket_client = AzureRealtimeWebsocket(
                     async_client=client,
-                    deployment_name='gpt-4o-mini-realtime-preview',
+                    #deployment_name='gpt-4o-mini-realtime-preview',
+                    deployment_name="gpt-4o-mini-transcribe",
                     settings=settings,
                 )
                 
@@ -216,5 +259,5 @@ async def realtime_endpoint(websocket: WebSocket,azure_ai_client: AzureAIClient)
                 await websocket.send_text("END")
     except (WebSocketDisconnect, ConnectionClosed) as e:
         logger.warning(f"WebSocket error: {e}")
-    except Exception as e:
-        logger.error(f"Unexpected error: {e}")
+    # except Exception as e:
+    #     logger.error(f"Unexpected error: {e}")

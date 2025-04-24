@@ -4,3 +4,4 @@ pydantic-settings==2.8.1
 semantic-kernel[azure,realtime]==1.28.1
 requests==2.32.3
 azure-monitor-opentelemetry-exporter==1.0.0b36
+python-multipart==0.0.20

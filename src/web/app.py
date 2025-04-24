@@ -4,7 +4,7 @@ import asyncio
 import threading
 import pyaudio
 import time
-from services.chat import realtime
+from services.chat import realtime, transcribe
 
 
 import orjson
@@ -121,13 +121,12 @@ if "thread_id" in st.session_state:
 
     if audio := st.audio_input("Record audio"):
         full_delta_content = ""
-        response = realtime(content=audio.read())
+        response = transcribe(content=audio)
         with st.empty():
-            for chunk in response:
-                full_delta_content += str(chunk)
+            full_delta_content = str(response)
             
-                with st.chat_message(AuthorRole.USER):
-                    st.markdown(full_delta_content)
+            with st.chat_message(AuthorRole.USER):
+                st.markdown(full_delta_content)
                     
         st.session_state.messages.add_user_message(full_delta_content)
        

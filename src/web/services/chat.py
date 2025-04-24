@@ -55,6 +55,15 @@ def realtime(content):
     except Exception as e:
         print(f"Error in realtime connection: {e}")
 
+def transcribe(content):
+    try:
+        response = requests.post(url=f"{api_base_url}/v1/transcribe",
+                                 files={"file": content},
+                                 timeout=60)
+        return response.json()
+    except Exception as e:
+        print(f"Error during transcription: {e}")
+
 def get_thread(thread_id):
     get_thread_input = ChatGetThreadInput(thread_id=thread_id)
 
@@ -86,4 +95,4 @@ def get_image_contents(thread_id):
 
     return image_contents.json()
 
-__all__ = ["chat", "get_image", "get_thread", "get_image_contents", "create_thread", "realtime"]
+__all__ = ["chat", "get_image", "get_thread", "get_image_contents", "create_thread", "realtime", "transcribe"]
