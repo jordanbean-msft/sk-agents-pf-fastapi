@@ -121,8 +121,7 @@ if "thread_id" in st.session_state:
 
     if audio := st.audio_input("Record audio"):
         full_delta_content = ""
-        response = realtime(thread_id=st.session_state.thread_id,
-                                  content=audio.read())
+        response = realtime(content=audio.read())
         with st.empty():
             for chunk in response:
                 full_delta_content += str(chunk)

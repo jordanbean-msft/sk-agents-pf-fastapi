@@ -35,18 +35,17 @@ def chat(thread_id,
 
     yield from (event.decode('utf-8') for event in response)
 
-def realtime(thread_id, content):
-    chat_input = ChatRealtimeInput(thread_id=thread_id)
+def realtime(content):
     #remove http(s) from api_base_url
     raw_api_base_url = api_base_url.replace("http://", "").replace("https://", "")
 
     try:
         with connect(f"ws://{raw_api_base_url}/v1/realtime",
                       timeout=30) as ws:
-            # Send metadata as JSON
-            ws.send(json.dumps(chat_input.model_dump(mode="json")))
             # Send audio bytes
             ws.send(content)  # content should be bytes
+
+            ws.send("END")  # Send a message to indicate the end of the audio stream
 
             while True:
                 result = ws.recv()

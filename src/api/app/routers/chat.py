@@ -1,5 +1,7 @@
+import base64
 import json
 import logging
+from typing import Any, cast
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, WebSocketException
 from fastapi.responses import Response, StreamingResponse
@@ -178,41 +180,40 @@ async def get_agent_thread(chat_input, azure_ai_client, alarm_agent):
 async def realtime_endpoint(websocket: WebSocket,azure_ai_client: AzureAIClient):
     await websocket.accept()
     try:
-         while True:
-              chat_realtime_input = await websocket.receive_json()
-              audio_bytes = await websocket.receive_bytes()
+        while True:
+            audio_bytes = await websocket.receive_bytes()
+            end = await websocket.receive_text()
 
-              settings = AzureRealtimeExecutionSettings(
-                   modalities=['audio'],
-              )
-              
-              client = await azure_ai_client.inference.get_azure_openai_client(
-                   api_version="2024-10-01-preview"
-              )
-
-              azure_realtime_websocket_client = AzureRealtimeWebsocket(
-                   async_client=client,
-                   deployment_name='gpt-4o-mini-realtime-preview',
-                   settings=settings,
-              )
-              
-              async with azure_realtime_websocket_client():
-                await azure_realtime_websocket_client.send(
-                    RealtimeAudioEvent(
-                        audio=AudioContent(
-                             data=audio_bytes,
-                             data_format="base64",
-                             mime_type="audio/wav",)
-                    )
+            if end == "END":
+                settings = AzureRealtimeExecutionSettings(
+                    modalities=['audio'],
+                )
+                
+                client = await azure_ai_client.inference.get_azure_openai_client(
+                    api_version="2024-10-01-preview"
                 )
 
-                async for event in azure_realtime_websocket_client.receive():
-                    if isinstance(event, RealtimeTextEvent):
-                        await websocket.send_text(event.text.text)
-                    else:
-                        logger.warning(f"Unknown event type: {type(event)}")
-              
-              await websocket.send_text("END")
+                azure_realtime_websocket_client = AzureRealtimeWebsocket(
+                    async_client=client,
+                    deployment_name='gpt-4o-mini-realtime-preview',
+                    settings=settings,
+                )
+                
+                async with azure_realtime_websocket_client():
+                    await azure_realtime_websocket_client.send(
+                        RealtimeAudioEvent(audio=AudioContent(data=base64.b64encode(cast(Any, audio_bytes)).decode("utf-8")))
+                    )
+
+                    async for event in azure_realtime_websocket_client.receive():
+                        match event:
+                            case RealtimeTextEvent():
+                                await websocket.send_text(event.text.text)
+                            case _:
+                                if event.service_event == ListenEvents.RESPONSE_DONE:
+                                    logger.info("Response done")
+                                    break
+                                
+                await websocket.send_text("END")
     except (WebSocketDisconnect, ConnectionClosed) as e:
         logger.warning(f"WebSocket error: {e}")
     except Exception as e:
