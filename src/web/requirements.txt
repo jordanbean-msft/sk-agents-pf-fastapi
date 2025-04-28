@@ -4,3 +4,5 @@ pydantic==2.11.3
 semantic-kernel[azure,realtime]==1.28.1
 websockets==15.0.1
 streamlit-extras==0.6.0
+#azure-monitor-opentelemetry-exporter==1.0.0b36
+azure-monitor-opentelemetry==1.6.8

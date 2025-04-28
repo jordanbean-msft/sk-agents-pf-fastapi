@@ -3,8 +3,8 @@ import time
 import asyncio
 import threading
 import time
+import logging
 from services.chat import realtime, transcribe
-
 
 import streamlit as st
 from streamlit_extras.bottom_container import bottom
@@ -17,6 +17,7 @@ from models.chat_output import ChatOutput, deserialize_chat_output
 from models.content_type_enum import ContentTypeEnum
 from services.chat import chat, get_thread, get_image, get_image_contents, create_thread, realtime
 from utilities import output_formatter
+from logger import setup_logging
 
 def _handle_user_interaction():
     st.session_state["waiting_for_response"] = True
@@ -31,6 +32,8 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
+setup_logging()
+
 with open('assets/css/style.css', encoding='utf-8') as f:
     st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html = True)
 
@@ -43,7 +46,9 @@ if "messages" not in st.session_state:
 
 if "thread_id" not in st.session_state:
     with st.spinner("Creating thread..."):
+        logging.info("Creating thread...")
         thread_id = create_thread()
+        logging.info("Created thread with ID: %s", thread_id)
         st.session_state.thread_id = thread_id        
 
 def render_response(response):
@@ -57,11 +62,6 @@ def render_response(response):
                 full_delta_content += delta.content
 
                 # Display the content incrementally
-                # if delta.content.startswith("```python"):
-                #     st.code(full_delta_content, language="python")
-                # elif delta.content.startswith("```"):
-                #     st.code(full_delta_content)
-                # else:
                 st.markdown(full_delta_content)                                    
             elif delta.content_type == ContentTypeEnum.FILE:
                 image = get_image(file_id=delta.content)
@@ -84,8 +84,10 @@ def response(question):
     # Display assistant response in chat message container
     with st.chat_message(AuthorRole.ASSISTANT):
         with st.spinner("Reticulating splines..."):
+            logging.info("Chat request: %s", question)
             response = chat(thread_id=st.session_state.thread_id,
-                            content=question)
+                            content=question)            
+            logging.info("Chat request complete.")
 
             with st.empty():
                 render_response(response)
@@ -139,8 +141,8 @@ if "thread_id" in st.session_state:
             st.markdown(question)
 
         response(question)
-    # with bottom():
-    #     audio_chat()
+    #with bottom():
+    #audio_chat()
        
 if st.session_state["waiting_for_response"]:
     st.session_state["waiting_for_response"] = False
