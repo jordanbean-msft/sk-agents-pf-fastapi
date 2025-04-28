@@ -2,6 +2,5 @@ streamlit==1.44.1
 requests==2.32.3
 pydantic==2.11.3
 semantic-kernel[azure,realtime]==1.28.1
-pyaudio==0.2.14
 websockets==15.0.1
 streamlit-extras==0.6.0

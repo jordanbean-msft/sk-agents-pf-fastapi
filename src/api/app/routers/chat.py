@@ -9,7 +9,6 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, WebSocketExceptio
 from fastapi.responses import Response, StreamingResponse
 from opentelemetry import trace
 
-import orjson
 from semantic_kernel import Kernel
 from semantic_kernel.contents.chat_message_content import ChatMessageContent
 from semantic_kernel.processes import ProcessBuilder

@@ -2,12 +2,10 @@ import json
 import time
 import asyncio
 import threading
-import pyaudio
 import time
 from services.chat import realtime, transcribe
 
 
-import orjson
 import streamlit as st
 from streamlit_extras.bottom_container import bottom
 
