@@ -172,7 +172,7 @@ st.title("GE Vernova – Virtual Operator")
 
 # 1) Initialize session_state  
 if 'my_chats' not in st.session_state:  
-    st.session_state.my_chats =get_user_chats("user_id")
+    st.session_state.my_chats =get_user_chats()
 
 if 'sys_chats' not in st.session_state:  
     st.session_state.sys_chats = get_system_chats("user_id")

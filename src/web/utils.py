@@ -1,32 +1,45 @@
-def get_user_chats(user_id):
-    return [
-        {
-            'chat_title': 'Chat A',
-            'thread_id': '123',
-            'urgency': 'low',
-            'messages': [
-                {'role': 'user', 'content': 'Hello, how can I reset my password?'},
-                {'role': 'assistant', 'content': 'To reset your password, go to the account settings and click "Reset Password".'},
-                {'role': 'user', 'content': 'I don’t see the settings option for my account.'},
-                {'role': 'assistant', 'content': 'Make sure you’re logged in. If the issue persists, contact support.'}
-            ]
-        },
-        {
-            'chat_title': 'Chat B',
-            'thread_id': '456',
-            'urgency': 'low',
-            'messages': [
-                {'role': 'user', 'content': 'Is the monthly report ready?'},
-                {'role': 'assistant', 'content': 'The report will be available by end of day today.'},
-                {'role': 'user', 'content': 'Great, thanks!'}
-            ]
+from azure.cosmos import CosmosClient, PartitionKey  
+from azure.identity import DefaultAzureCredential
+from dotenv import load_dotenv
+import os
+
+load_dotenv('.env', override=True)  # Load environment variables from .env file
+  
+# Initialize Cosmos client  
+endpoint = os.getenv("COSMOS_ENDPOINT")
+
+client = CosmosClient(endpoint, DefaultAzureCredential())  
+  
+database_name = os.getenv("COSMOS_DATABASE")
+container_name = os.getenv("COSMOS_CONTAINER")
+  
+
+def get_user_chats(user_id='nikwieci'):
+    container = client.get_database_client(database_name).get_container_client(container_name)
+    query = f"""SELECT * FROM c WHERE c.userid = '{user_id}' AND c.source = 'user'"""  
+    items = container.query_items(  
+            query=query,  
+            enable_cross_partition_query=True  
+        )  
+    chats = []
+    for item in items:
+        chat = {
+            'chat_title': item['title'],
+            'thread_id': item['thread_id'],
+            'urgency': '',
+            'messages': item['conversation'],
+            'user_id': item['userid'],
         }
-    ]
+        chats.append(chat)
+
+    logging.info(chats)
+
+    return chats
 
 def get_system_chats(user_id):
     return [
         {
-            'chat_title': 'System A',
+            'chat_title': 'Red Flag 19374',
             'thread_id': '789',
             'urgency': 'high',
             'messages': [
@@ -35,7 +48,7 @@ def get_system_chats(user_id):
             ]
         },
         {
-            'chat_title': 'System B',
+            'chat_title': 'Red Flag 83004',
             'thread_id': '110',
             'urgency': 'med',
             'messages': [
@@ -85,7 +98,7 @@ def push_to_event_hub() -> None:
   
             # Send the batch of events to the event hub.  
             producer.send_batch(event_batch) 
-             
+
             return message
     except Exception as e:  
         logger.exception("Failed to send message to Event Hub: %s", e)  
