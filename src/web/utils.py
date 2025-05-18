@@ -6,15 +6,16 @@ import os
 load_dotenv('.env', override=True)  # Load environment variables from .env file
   
 # Initialize Cosmos client  
-endpoint = os.getenv("COSMOS_ENDPOINT")
+# endpoint = os.getenv("COSMOS_ENDPOINT")
 
-client = CosmosClient(endpoint, DefaultAzureCredential())  
+# client = CosmosClient(endpoint, DefaultAzureCredential())  
   
-database_name = os.getenv("COSMOS_DATABASE")
-container_name = os.getenv("COSMOS_CONTAINER")
+# database_name = os.getenv("COSMOS_DATABASE")
+# container_name = os.getenv("COSMOS_CONTAINER")
   
 
 def get_user_chats(user_id='nikwieci'):
+    return []
     container = client.get_database_client(database_name).get_container_client(container_name)
     query = f"""SELECT * FROM c WHERE c.userid = '{user_id}' AND c.source = 'user'"""  
     items = container.query_items(  

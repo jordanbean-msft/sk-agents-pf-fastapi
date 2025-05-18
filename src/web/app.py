@@ -157,11 +157,11 @@ from dotenv import load_dotenv
 import os
 import time
 import threading
-import websocket
-import json
-import logging
 import websockets
 import asyncio
+import queue
+from streamlit_autorefresh import st_autorefresh
+import json
 
 load_dotenv('.env', override=True)  # Load environment variables from .env file
   
@@ -184,26 +184,36 @@ if 'active_chat_key' not in st.session_state:
 if 'logs' not in st.session_state:  
     st.session_state.logs = []  
     
-# Function to handle WebSocket connection
-async def websocket_handler():
-    uri = "ws://localhost:6789"
-    async with websockets.connect(uri) as websocket:
-        while True:
-            message = await websocket.recv()
-            st.session_state.messages.append(message)
-            st.toast(f"Received message: {message}", icon="✅")
+if 'msg_queue' not in st.session_state:
+    st.session_state.msg_queue = queue.Queue()
 
-# Start the WebSocket connection in a separate thread
-def start_websocket_thread():
-    asyncio.run(websocket_handler())
+# 2) start your WS reader thread once
+def ws_reader(q):
+    async def reader():
+        uri = "ws://localhost:6789"
+        async with websockets.connect(uri) as ws:
+            while True:
+                msg = await ws.recv()
+                q.put(msg)
+    asyncio.run(reader())
+
+if 'ws_thread' not in st.session_state:
+    t = threading.Thread(target=ws_reader, args=(st.session_state.msg_queue,), daemon=True)
+    t.start()
+    st.session_state.ws_thread = t
+
+# 3) pull anything off the queue into session_state.messages
+while not st.session_state.msg_queue.empty():
+    st.session_state.sys_chats.insert(0,json.loads(st.session_state.msg_queue.get()))
+    
+# 4) auto-refresh every second so new messages appear
+st_autorefresh(interval=5000, key="ws_refresh")
 
 if 'messages' not in st.session_state:
     st.session_state.messages = []
 
-# Start the WebSocket thread
-if 'websocket_thread' not in st.session_state:
-    st.session_state.websocket_thread = threading.Thread(target=start_websocket_thread)
-    st.session_state.websocket_thread.start()
+for m in st.session_state.messages:
+    st.write(m)
 
 st.markdown("""  
 <style>  
