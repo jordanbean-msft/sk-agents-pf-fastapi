@@ -1,0 +1,31 @@
+@eventHubsNamespace = ehn-sk-agents-pf-fastapi-eus2-dev
+@eventHubPath = alarm-events
+
+# enable alarm
+POST http://localhost:8000/v1/alarm HTTP/1.1
+content-type: application/json
+
+###
+
+# get access token to Event Hub
+# @name getAccessToken
+POST https://login.microsoftonline.com/{{TENANT_ID}}/oauth2/v2.0/token HTTP/1.1
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials
+&client_id={{CLIENT_ID}}
+&client_secret={{CLIENT_SECRET}}
+&scope=https://eventhubs.azure.net/.default
+
+###
+
+@access_token = {{ getAccessToken.response.body.access_token }}
+
+# publish event to Event Hub
+POST https://{{eventHubsNamespace}}.servicebus.windows.net/{{eventHubPath}}/messages?timeout=60&api-version=2014-01 HTTP/1.1
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+    "asdf": "asdf"
+}

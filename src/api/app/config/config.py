@@ -9,6 +9,13 @@ class Settings(BaseSettings):
     azure_openai_transcription_model_deployment_name: str
     azure_openai_transcription_model_api_version: str
 
+    # Azure Event Hub configuration
+    event_hub_fully_qualified_namespace: str
+    event_hub_name: str
+    event_hub_consumer_group: str
+    blob_storage_account_url: str
+    blob_container_name: str
+
 @lru_cache
 def get_settings():
     return Settings()

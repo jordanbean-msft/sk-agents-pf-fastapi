@@ -1,7 +1,10 @@
 fastapi[standard]==0.115.12
 pydantic==2.11.3
 pydantic-settings==2.8.1
-semantic-kernel[azure,realtime]==1.28.1
+semantic-kernel[azure,realtime]==1.30.0
 requests==2.32.3
 azure-monitor-opentelemetry-exporter==1.0.0b36
 python-multipart==0.0.20
+azure-eventhub==5.15.0
+azure-identity==1.23.0
+azure-eventhub-checkpointstoreblob-aio==1.2.0
