@@ -352,3 +352,5 @@ MigrationBackup/
 .env
 
 **/.venv
+
+scratch/*
