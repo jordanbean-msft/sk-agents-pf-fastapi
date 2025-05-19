@@ -27,5 +27,18 @@ Authorization: Bearer {{access_token}}
 Content-Type: application/json
 
 {
-    "asdf": "asdf"
+    "specversion": "1.0",
+    "type": "custom-alarm",
+    "source": "/alarm",
+    "id": "1234",
+    "time": "2023-10-01T00:00:00Z",
+    "datacontenttype": "application/json",
+    "data": {
+        "alarmId": "1234",
+        "alarmName": "Test Alarm",
+        "alarmDescription": "This is a test alarm",
+        "alarmSeverity": "Critical",
+        "alarmStatus": "Active",
+        "alarmTimestamp": "2023-10-01T00:00:00Z"
+    }
 }

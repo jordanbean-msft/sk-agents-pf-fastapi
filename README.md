@@ -20,6 +20,14 @@
 
 ## Deployment
 
+1.  Update the `infra/deploy.ps1` script variables with your environment.
+
+1.  Run the deployment script to create the required resources in Azure.
+
+    ```shell
+    ./infra/deploy.ps1
+    ```
+
 ## Local
 
 Perform each of the following sections in a new shell window.
@@ -41,6 +49,11 @@ Perform each of the following sections in a new shell window.
     SEMANTICKERNEL_EXPERIMENTAL_GENAI_ENABLE_OTEL_DIAGNOSTICS_SENSITIVE=true
     AZURE_OPENAI_TRANSCRIPTION_MODEL_DEPLOYMENT_NAME=
     AZURE_OPENAI_TRANSCRIPTION_MODEL_API_VERSION=
+    EVENT_HUB_FULLY_QUALIFIED_NAMESPACE
+    EVENT_HUB_NAME=
+    EVENT_HUB_CONSUMER_GROUP=
+    BLOB_STORAGE_ACCOUNT_URL=
+    BLOB_CONTAINER_NAME=
     ```
 
 1.  Create a virtual environment
