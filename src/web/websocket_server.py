@@ -3,7 +3,7 @@ import websockets
 
 connected_clients = set()
 
-async def echo(websocket):
+async def broadcast(websocket):
     # Register the new client
     connected_clients.add(websocket)
     try:
@@ -18,7 +18,7 @@ async def echo(websocket):
 
 async def main():
     # Create and run the server within a running event loop
-    async with websockets.serve(echo, "localhost", 6789):
+    async with websockets.serve(broadcast, "localhost", 6789):
         await asyncio.Future()  # run forever
 
 if __name__ == "__main__":

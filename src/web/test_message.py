@@ -5,7 +5,7 @@ import json
 async def main():
     uri = "ws://localhost:6789"
     msg = {  
-        'chat_title': 'Alert 24569',  
+        'chat_title': 'Alert 24570',  
         'thread_id': '456',  
         'urgency': 'medium',  
         'messages': [  
