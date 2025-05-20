@@ -21,3 +21,5 @@ app.include_router(liveness.router, prefix="/v1")
 app.include_router(readiness.router, prefix="/v1")
 app.include_router(startup.router, prefix="/v1")
 app.include_router(alarm.router, prefix="/v1")
+
+alarm.start_alarm_event_listener()

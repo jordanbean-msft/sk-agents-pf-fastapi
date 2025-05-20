@@ -190,7 +190,7 @@ def ws_reader(q):
         base_uri = get_settings().services__api__api__0
         #remove the protocol from the environment variable
         raw_uri = base_uri.replace("https://", "").replace("http://", "")
-        uri = f"ws://{raw_uri}/v1/realtime"
+        uri = f"ws://{raw_uri}/v1/alarm/1"
         async with websockets.connect(uri) as ws:
             while True:
                 msg = await ws.recv()

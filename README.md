@@ -27,6 +27,10 @@
     ```shell
     ./infra/deploy.ps1
     ```
+1.  Grant the following Azure RBAC roles to the managed identity.
+
+    - **Storage Blob Data Contributor** on the blob storage account
+    - **Azure Event Hubs Data Owner** on the event hub
 
 ## Local
 
