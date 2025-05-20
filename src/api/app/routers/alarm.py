@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import time
 import cloudevents
 import cloudevents.http
 from opentelemetry import trace
@@ -8,9 +9,10 @@ from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from azure.core.exceptions import AzureError
 
 import asyncio
+from asyncio import Queue
 
 from app.models.chat_input import ChatInput
-from app.models.chat_output import ChatOutput
+from app.models.chat_output import ChatOutput, serialize_chat_output
 from app.models.content_type_enum import ContentTypeEnum
 from app.services.chat import build_chat_results, create_thread, get_thread
 from app.services.dependencies import AzureAIClient, ConnectionManagerClient, EventHubClient, get_create_azure_ai_client, get_create_connection_manager, get_create_event_hub_client
@@ -20,16 +22,20 @@ router = APIRouter()
 logger = logging.getLogger("uvicorn.error")
 tracer = trace.get_tracer(__name__)
 
+queue: Queue
+
 def make_on_event(websocket_connection_manager: ConnectionManagerClient, azure_ai_client: AzureAIClient):
     async def on_event(partition_context, event):
         try:
-            event = cloudevents.http.from_json(event.body_as_str(encoding="UTF-8"))
+            decoded_event = cloudevents.http.from_json(event.body_as_str(encoding="UTF-8"))
+
+            logger.debug(f"Received event: {event.body_as_str(encoding="UTF-8")}")
 
             thread_output = await create_thread(azure_ai_client)
 
-            chat_input = ChatInput(thread_id=thread_output.thread_id, content=json.dumps(event.data))
+            chat_input = ChatInput(thread_id=thread_output.thread_id, content=json.dumps(decoded_event.data))
             
-            final_result = ""
+            final_content = ""
             async for result in build_chat_results(chat_input, azure_ai_client):
                 chat_output_dict = json.loads(result)
                 chat_output = ChatOutput(
@@ -37,9 +43,20 @@ def make_on_event(websocket_connection_manager: ConnectionManagerClient, azure_a
                     content=chat_output_dict["content"],
                     thread_id=chat_output_dict["thread_id"],
                 )
-                final_result += chat_output.content
+                final_content += chat_output.content
                 
-            await send_message(thread_output.thread_id, final_result, websocket_connection_manager)
+            final_result = ChatOutput(
+                content_type=ContentTypeEnum.MARKDOWN,
+                content=final_content,
+                thread_id=thread_output.thread_id,
+            )
+
+            final_result_str = json.dumps(
+                obj=final_result,
+                default=serialize_chat_output,                    
+            )
+
+            await send_message(thread_output.thread_id, final_result_str, websocket_connection_manager)
 
             await partition_context.update_checkpoint(event)
         except Exception as e:
@@ -82,7 +99,6 @@ async def websocket_connect(websocket: WebSocket, client_id: str, websocket_conn
     """
     WebSocket endpoint for real-time communication.
     """
-    await websocket.accept()
     try:
         await websocket_connection_manager.connect(websocket, client_id)
         logger.info(f"WebSocket connection established for thread_id: {client_id}")
@@ -92,18 +108,30 @@ async def websocket_connect(websocket: WebSocket, client_id: str, websocket_conn
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
         raise HTTPException(status_code=500, detail="WebSocket error.")
+        
+    global queue
+    queue = Queue()
+
+    while True:
+        msg = await queue.get()
+        await websocket_connection_manager.send_message(client_id, msg)
     
 async def send_message(thread_id: str, message: str, websocket_connection_manager: ConnectionManagerClient):
     try:
-        websocket = websocket_connection_manager.active_connections.get(thread_id)
+        # websocket = websocket_connection_manager.active_connections.get("1")
 
-        if websocket is not None:        
-            await websocket.send_text(message)
+        # if websocket is not None:        
+        #     await websocket.send_text(message)
+        #     logger.info(f"Message sent to thread_id {thread_id}: {message}")
+        # else:
+        #     logger.warning(f"No active WebSocket connection for thread_id {thread_id}.")
+        #     raise HTTPException(status_code=404, detail="WebSocket connection not found.")
+        # Send the message to the WebSocket connection
+        #await websocket_connection_manager.send_message("1", message)
+        if queue:
+            await queue.put(message)
             logger.info(f"Message sent to thread_id {thread_id}: {message}")
-        else:
-            logger.warning(f"No active WebSocket connection for thread_id {thread_id}.")
-            raise HTTPException(status_code=404, detail="WebSocket connection not found.")
-        
+                
     except Exception as e:
         logger.error(f"Failed to send message: {e}")
         raise HTTPException(status_code=500, detail="Failed to send message.")

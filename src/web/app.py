@@ -156,7 +156,8 @@ from utils import get_user_chats, get_system_chats, push_to_event_hub  # Assumin
 import os
 import time
 import threading
-import websockets
+#import websockets
+import websocket
 import asyncio
 import queue
 from streamlit_autorefresh import st_autorefresh
@@ -168,12 +169,14 @@ st.set_page_config(layout="wide")
 
 st.title("Alarm Agent")
 
+websocket.enableTrace(True)
+
 # 1) Initialize session_state  
 if 'my_chats' not in st.session_state:  
     st.session_state.my_chats =get_user_chats()
 
 if 'sys_chats' not in st.session_state:  
-    st.session_state.sys_chats = get_system_chats("user_id")
+    st.session_state.sys_chats = [] #get_system_chats("user_id")
 
 if 'active_chat_key' not in st.session_state:  
     # tuple of ("my" or "sys", chat_name)  
@@ -185,23 +188,63 @@ if 'logs' not in st.session_state:
 if 'msg_queue' not in st.session_state:
     st.session_state.msg_queue = queue.Queue()
 
-def ws_reader(q):
-    async def reader():
-        base_uri = get_settings().services__api__api__0
-        #remove the protocol from the environment variable
-        raw_uri = base_uri.replace("https://", "").replace("http://", "")
-        uri = f"ws://{raw_uri}/v1/alarm/1"
-        async with websockets.connect(uri) as ws:
-            while True:
-                msg = await ws.recv()
-                q.put(msg)
-    asyncio.run(reader())
+
+# def ws_reader(q):
+#     async def reader():
+#         base_uri = get_settings().services__api__api__0
+#         #remove the protocol from the environment variable
+#         raw_uri = base_uri.replace("https://", "").replace("http://", "")
+#         uri = f"ws://{raw_uri}/v1/alarm/1"
+#         async with websockets.connect(uri) as ws:            
+#             while True:
+#                 msg = await ws.recv()
+#                 q.put(msg)
+#     asyncio.run(reader())
+
+# if 'ws_thread' not in st.session_state:
+#     t = threading.Thread(target=ws_reader, args=(st.session_state.msg_queue,), daemon=True)
+#     t.start()
+#     st.session_state.ws_thread = t
+
+#def on_message(ws, message):
+#    st.session_state.msg_queue.put(message)
+
+# Use a closure to pass msg_queue to on_message
+def make_on_message(msg_queue):
+    def on_message(ws, message):
+        msg_queue.put(message)
+    return on_message
+
+def on_error(ws, error):
+    print(f"WebSocket Error: {error}")
+
+def on_close(ws, close_status_code, close_msg):
+    print("WebSocket connection closed")
+
+def run_websocket(msg_queue):
+    base_uri = get_settings().services__api__api__0
+    #remove the protocol from the environment variable
+    raw_uri = base_uri.replace("https://", "").replace("http://", "")
+    uri = f"ws://{raw_uri}/v1/alarm/1"
+    ws = websocket.WebSocketApp(
+        uri,
+        on_message=make_on_message(msg_queue),
+        on_error=on_error,
+        on_close=on_close
+    )
+    
+    ws.run_forever()
+    print("WebSocket thread started")
 
 if 'ws_thread' not in st.session_state:
-    t = threading.Thread(target=ws_reader, args=(st.session_state.msg_queue,), daemon=True)
+    t = threading.Thread(
+        target=run_websocket, 
+        args=(st.session_state.msg_queue,),
+        daemon=True)
     t.start()
     st.session_state.ws_thread = t
 
+    # The rest of the code remains unchanged
 while not st.session_state.msg_queue.empty():
     st.session_state.sys_chats.insert(0,json.loads(st.session_state.msg_queue.get()))
     
@@ -235,25 +278,27 @@ if selected_tab == "Chat":
     # — your existing sidebar chat‑list code —
     st.sidebar.markdown("#### System Chats")
     for chat in st.session_state.sys_chats:
-        if st.sidebar.button(chat["chat_title"], key=f"sid_sys_{chat['chat_title']}"):
-            st.session_state.active_chat_key = ("sys", chat["chat_title"])
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("#### My Chats")
-    for chat in st.session_state.my_chats:
-        if st.sidebar.button(chat["chat_title"], key=f"sid_my_{chat['chat_title']}"):
-            st.session_state.active_chat_key = ("my", chat["chat_title"])
+        st.markdown(chat["content"], unsafe_allow_html=True)
+    # for chat in st.session_state.sys_chats:
+    #     if st.sidebar.button(chat["chat_title"], key=f"sid_sys_{chat['chat_title']}"):
+    #         st.session_state.active_chat_key = ("sys", chat["chat_title"])
+    # st.sidebar.markdown("---")
+    # st.sidebar.markdown("#### My Chats")
+    # for chat in st.session_state.my_chats:
+    #     if st.sidebar.button(chat["chat_title"], key=f"sid_my_{chat['chat_title']}"):
+    #         st.session_state.active_chat_key = ("my", chat["chat_title"])
 
-    # — your existing chat‐history display code —
-    if st.session_state.active_chat_key:
-        chat_type, chat_name = st.session_state.active_chat_key
-        chats = st.session_state.my_chats if chat_type == "my" else st.session_state.sys_chats
-        history = []
-        if st.session_state.active_chat_key:
-            history = next(c["messages"] for c in chats if c["chat_title"] == chat_name)
+    # # — your existing chat‐history display code —
+    # if st.session_state.active_chat_key:
+    #     chat_type, chat_name = st.session_state.active_chat_key
+    #     chats = st.session_state.my_chats if chat_type == "my" else st.session_state.sys_chats
+    #     history = []
+    #     if st.session_state.active_chat_key:
+    #         history = next(c["messages"] for c in chats if c["chat_title"] == chat_name)
 
-    for msg in history:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"], unsafe_allow_html=True)
+    # for msg in history:
+    #     with st.chat_message(msg["role"]):
+    #         st.markdown(msg["content"], unsafe_allow_html=True)
 
     # — only here do we call bottom() —
     with bottom():
