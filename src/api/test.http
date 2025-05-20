@@ -34,11 +34,83 @@ Content-Type: application/json
     "time": "2023-10-01T00:00:00Z",
     "datacontenttype": "application/json",
     "data": {
-        "alarmId": "1234",
-        "alarmName": "Test Alarm",
-        "alarmDescription": "This is a test alarm",
-        "alarmSeverity": "Critical",
-        "alarmStatus": "Active",
-        "alarmTimestamp": "2023-10-01T00:00:00Z"
+        {
+    "event_id": "RF-20230920-AC1",
+    "event_type": "Red Flag Warning",
+    "status": "Active",
+    "severity": "Severe",
+    "created_time": "2023-09-20T10:30:00Z",
+    "issued_by": {
+      "agency": "National Weather Service",
+      "office": "Anchorage, AK"
+    },
+    "effective_time": "2023-09-20T12:00:00Z",
+    "expiration_time": "2023-09-20T23:59:00Z",
+    "locations": [
+      {
+        "name": "Chugach National Forest",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -149.5,
+                61
+              ],
+              [
+                -149,
+                61
+              ],
+              [
+                -149,
+                61.5
+              ],
+              [
+                -149.5,
+                61.5
+              ],
+              [
+                -149.5,
+                61
+              ]
+            ]
+          ]
+        }
+      }
+    ],
+    "weather_details": {
+      "temperature_f": 75,
+      "humidity_percent": 12,
+      "wind": {
+        "direction": "N",
+        "speed_mph": 30,
+        "gust_mph": 50
+      },
+      "precipitation_chance_percent": 5
+    },
+    "fuel_conditions": {
+      "live_fuel_moisture_percent": 50,
+      "dead_fuel_moisture_percent": 5,
+      "drought_code": 350,
+      "duff_moisture_percent": 8
+    },
+    "fire_weather_index": {
+      "fwi": 52,
+      "initial_spread_index": 15,
+      "build_up_index": 60
+    },
+    "narrative": "Strong northerly winds combined with low humidity will lead to critical fire weather conditions across the Chugach National Forest. Outdoor burning is strongly discouraged.",
+    "contacts": [
+      {
+        "agency": "National Weather Service",
+        "phone": "907-555-1234",
+        "email": "anchorage.weather@noaa.gov"
+      },
+      {
+        "agency": "Alaska Division of Forestry",
+        "phone": "907-555-5678"
+      }
+    ]
+  }
     }
 }

@@ -153,7 +153,6 @@ import streamlit as st
 from streamlit_extras.bottom_container import bottom
 from utils import get_user_chats, get_system_chats, push_to_event_hub  # Assuming these functions are defined in utils.py
 
-from dotenv import load_dotenv
 import os
 import time
 import threading
@@ -163,12 +162,11 @@ import queue
 from streamlit_autorefresh import st_autorefresh
 import json
 
-load_dotenv('.env', override=True)  # Load environment variables from .env file
-  
+from config import get_settings
+
 st.set_page_config(layout="wide")  
 
-st.title("GE Vernova – Virtual Operator")
-
+st.title("Alarm Agent")
 
 # 1) Initialize session_state  
 if 'my_chats' not in st.session_state:  
@@ -189,7 +187,10 @@ if 'msg_queue' not in st.session_state:
 
 def ws_reader(q):
     async def reader():
-        uri = "ws://localhost:6789"
+        base_uri = get_settings().services__api__api__0
+        #remove the protocol from the environment variable
+        raw_uri = base_uri.replace("https://", "").replace("http://", "")
+        uri = f"ws://{raw_uri}/v1/realtime"
         async with websockets.connect(uri) as ws:
             while True:
                 msg = await ws.recv()
@@ -226,11 +227,11 @@ st.markdown("""
   }  
 </style>  
 """, unsafe_allow_html=True)  
-raw_api_base_url = os.getenv("raw_api_base_url")
+raw_api_base_url = get_settings().services__api__api__0
 history = []
-selected_tab = st.sidebar.radio("Navigate", ["Virtual Operator Chat", "Event Creation"])
+selected_tab = st.sidebar.radio("Navigate", ["Chat", "Event Creation"])
 
-if selected_tab == "Virtual Operator Chat":
+if selected_tab == "Chat":
     # — your existing sidebar chat‑list code —
     st.sidebar.markdown("#### System Chats")
     for chat in st.session_state.sys_chats:
@@ -256,13 +257,13 @@ if selected_tab == "Virtual Operator Chat":
 
     # — only here do we call bottom() —
     with bottom():
-        prompt = st.chat_input("Chat with Virtual Operator")
+        prompt = st.chat_input("Chat")
 
 elif selected_tab == "Event Creation":
-    if st.button("Create Red Flag Event"):
+    if st.button("Create Event"):
         message = push_to_event_hub()
         st.json(message)
         time.sleep(2)
     
     else:
-        st.info("Press the button above to create a new red flag event.")
+        st.info("Press the button above to create a new event.")

@@ -1,4 +1,11 @@
 {
+  "specversion": "1.0",
+  "type": "custom-alarm",
+  "source": "/alarm",
+  "id": "1234",
+  "time": "2023-10-01T00:00:00Z",
+  "datacontenttype": "application/json",
+  "data": {
     "event_id": "RF-20230920-AC1",
     "event_type": "Red Flag Warning",
     "status": "Active",
@@ -76,3 +83,4 @@
       }
     ]
   }
+}

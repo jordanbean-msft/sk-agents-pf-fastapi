@@ -1,10 +1,8 @@
 from azure.cosmos import CosmosClient, PartitionKey  
 from azure.identity import DefaultAzureCredential
-from dotenv import load_dotenv
 import os
+from config import get_settings
 
-load_dotenv('.env', override=True)  # Load environment variables from .env file
-  
 # Initialize Cosmos client  
 # endpoint = os.getenv("COSMOS_ENDPOINT")
 
@@ -62,14 +60,9 @@ def get_system_chats(user_id):
 from azure.eventhub import EventHubProducerClient, EventData  
 import logging  
   
-logging.basicConfig(level=logging.INFO)  
 logger = logging.getLogger(__name__)  
 
-from dotenv import load_dotenv
-import os
-load_dotenv('.env', override=True)  # Load environment variables from .env file
-  
-def push_to_event_hub() -> None:  
+def push_to_event_hub():  
     """  
     Sends a single message to the specified Azure Event Hub.  
   
@@ -78,11 +71,13 @@ def push_to_event_hub() -> None:
     :param eventhub_name: The name of the Event Hub.  
     """  
     try:  
+        credential = DefaultAzureCredential()
         # Create a producer client to send messages to the event hub.  
-        producer = EventHubProducerClient.from_connection_string(  
-            conn_str=os.getenv("EVENT_HUB_CONN_STR"),  
-            eventhub_name=os.getenv("EVENT_HUB_NAME")  
-        )  
+        producer = EventHubProducerClient(
+            fully_qualified_namespace=get_settings().event_hub_fully_qualified_namespace,
+            eventhub_name=get_settings().event_hub_name,
+            credential=DefaultAzureCredential()
+        )
   
         # Use the client as a context manager to ensure clean-up.  
         with producer:  
@@ -95,7 +90,7 @@ def push_to_event_hub() -> None:
             # Add your message as an EventData. You can also send bytes or JSON strings.  
             event_batch.add(EventData(message))  
 
-            print(event_batch)
+            logger.debug(event_batch)
   
             # Send the batch of events to the event hub.  
             producer.send_batch(event_batch) 

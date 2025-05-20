@@ -1,6 +1,8 @@
 streamlit==1.44.1
 requests==2.32.3
 pydantic==2.11.3
-semantic-kernel[azure,realtime]==1.28.1
+semantic-kernel[azure,realtime]==1.30.0
 websockets==15.0.1
 streamlit-extras==0.6.0
+streamlit-autorefresh==1.0.1
+pydantic-settings==2.8.1
