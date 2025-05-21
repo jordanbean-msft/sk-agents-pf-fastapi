@@ -53,7 +53,7 @@ def make_on_event(websocket_connection_manager: ConnectionManagerClient, azure_a
 
             final_result_str = json.dumps(
                 obj=final_result,
-                default=serialize_chat_output,                    
+                default=serialize_chat_output,
             )
 
             await send_message(thread_output.thread_id, final_result_str, websocket_connection_manager)

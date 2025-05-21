@@ -2,9 +2,9 @@ import logging
 from datetime import datetime
 
 from semantic_kernel.agents import AzureAIAgent
-from azure.ai.projects.models import CodeInterpreterTool
-from azure.ai.projects.models import FileSearchTool
-from azure.ai.projects.models import (
+from azure.ai.agents.models import CodeInterpreterTool
+from azure.ai.agents.models import FileSearchTool
+from azure.ai.agents.models import (
     ResponseFormatJsonSchema,
     ResponseFormatJsonSchemaType,
 )

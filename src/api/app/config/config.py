@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     azure_openai_model_deployment_name: str
-    azure_ai_agent_project_connection_string: str
+    azure_ai_agent_endpoint: str
     application_insights_connection_string: str
     azure_openai_transcription_model_deployment_name: str
     azure_openai_transcription_model_api_version: str
@@ -18,6 +18,6 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings():
-    return Settings()
+    return Settings() # type: ignore
 
 __all__ = ["get_settings"]

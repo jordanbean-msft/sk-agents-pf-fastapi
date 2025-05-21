@@ -5,20 +5,21 @@ from opentelemetry import trace
 from semantic_kernel import Kernel
 from semantic_kernel.contents import StreamingFileReferenceContent, StreamingTextContent
 from semantic_kernel.agents import AzureAIAgentThread
-from azure.ai.projects.models import ThreadMessageOptions
+from azure.ai.agents.models import ThreadMessageOptions
 from app.agents.alarm_agent.main import create_alarm_agent
 from app.models.chat_create_thread_output import ChatCreateThreadOutput
 from app.models.chat_get_thread import ChatGetThreadInput
 from app.models.chat_input import ChatInput
 from app.models.chat_output import ChatOutput, serialize_chat_output
 from app.models.content_type_enum import ContentTypeEnum
+from app.plugins.alarm_plugin import AlarmPlugin
 from app.services.dependencies import AzureAIClient
 
 logger = logging.getLogger("uvicorn.error")
 tracer = trace.get_tracer(__name__)
 
 async def create_thread(azure_ai_client: AzureAIClient):
-        thread = await azure_ai_client.agents.create_thread()
+        thread = await azure_ai_client.agents.threads.create()
 
         return ChatCreateThreadOutput(thread_id=thread.id)
 
@@ -33,12 +34,11 @@ async def build_chat_results(chat_input: ChatInput, azure_ai_client: AzureAIClie
                 kernel=kernel
             )
 
-            # kernel.add_plugin(
-            #     plugin=AlarmPlugin(
-            #         thread_id=chat_input.thread_id
-            #     ),
-            #     plugin_name="alarm_plugin"
-            # )           
+            kernel.add_plugin(
+                plugin=AlarmPlugin(
+                ),
+                plugin_name="alarm_plugin"
+            )           
             thread = await get_agent_thread(chat_input, azure_ai_client, alarm_agent)
                  
             async for response in alarm_agent.invoke_stream(
@@ -95,11 +95,13 @@ async def get_agent_thread(chat_input, azure_ai_client, alarm_agent):
     return thread
 
 async def get_thread(thread_input: ChatGetThreadInput, azure_ai_client: AzureAIClient):
-        messages = await azure_ai_client.agents.list_messages(thread_id=thread_input.thread_id)
+        messages = []
+        async for msg in azure_ai_client.agents.messages.list(thread_id=thread_input.thread_id):
+            messages.append(msg)
 
         return_value = []
 
-        for message in messages.data:
+        for message in messages:
             return_value.append({"role": message.role, "content": message.content})
 
         return return_value

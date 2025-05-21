@@ -46,11 +46,13 @@ async def get_thread_router(thread_input: ChatGetThreadInput, azure_ai_client: A
 @tracer.start_as_current_span(name="get_image_contents")
 @router.get("/get_image_contents")
 async def get_file_path_annotations(thread_input: ChatGetImageContents, azure_ai_client: AzureAIClient):
-    messages = await azure_ai_client.agents.list_messages(thread_id=thread_input.thread_id)
+    messages = []
+    async for msg in azure_ai_client.agents.messages.list(thread_id=thread_input.thread_id):
+        messages.append(msg)
 
     return_value = []
 
-    for message in messages.image_contents:
+    for message in messages:
         return_value.append(
             {
                 "type": message.type,
@@ -63,7 +65,7 @@ async def get_file_path_annotations(thread_input: ChatGetImageContents, azure_ai
 @tracer.start_as_current_span(name="get_image")
 @router.get("/get_image", response_class=Response)
 async def get_image(thread_input: ChatGetImageInput, azure_ai_client: AzureAIClient):   
-    file_content_stream = await azure_ai_client.agents.get_file_content(thread_input.file_id)
+    file_content_stream = await azure_ai_client.agents.files.get_content(thread_input.file_id)
     if not file_content_stream:
         raise RuntimeError(f"No content retrievable for file ID '{thread_input.file_id}'.")
 
