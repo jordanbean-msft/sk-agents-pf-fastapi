@@ -1,4 +1,6 @@
 from functools import lru_cache
+
+from openai import AsyncAzureOpenAI
 from app.config import get_settings
 from app.services.connection_manager import ConnectionManager
 from azure.identity.aio import DefaultAzureCredential
@@ -20,6 +22,18 @@ def create_azure_ai_client():
     )
 
     return client
+
+async def create_async_azure_ai_client():
+    project_client = AIProjectClient(
+        endpoint=get_settings().azure_ai_agent_endpoint,
+        credential=DefaultAzureCredential()
+    )
+
+    async_azure_ai_client = await project_client.inference.get_azure_openai_client(
+        api_version=get_settings().azure_ai_agent_api_version,
+    )
+
+    return async_azure_ai_client
 
 def create_event_hub_client():
     credential = DefaultAzureCredential(exclude_interactive_browser_credential=False)
@@ -54,8 +68,13 @@ def get_create_event_hub_client():
 def get_create_connection_manager():
     return create_connection_manager()
 
+@lru_cache
+async def get_create_async_azure_ai_client():
+    return await create_async_azure_ai_client()
+
 AzureAIClient = Annotated[AIProjectClient, Depends(get_create_azure_ai_client)]
 EventHubClient = Annotated[EventHubConsumerClient, Depends(get_create_event_hub_client)]
 ConnectionManagerClient = Annotated[ConnectionManager, Depends(get_create_connection_manager)]
+AsyncAzureAIClient = Annotated[AsyncAzureOpenAI, Depends(get_create_async_azure_ai_client)]
 
-__all__ = ["AzureAIClient", "EventHubClient", "ConnectionManagerClient", "get_create_azure_ai_client", "get_create_event_hub_client", "get_create_connection_manager"]
+__all__ = ["AzureAIClient", "EventHubClient", "ConnectionManagerClient", "AsyncAzureAIClient", "get_create_azure_ai_client", "get_create_event_hub_client", "get_create_connection_manager", "get_create_async_azure_ai_client"]

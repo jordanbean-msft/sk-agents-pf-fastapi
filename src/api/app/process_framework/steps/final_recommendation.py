@@ -14,7 +14,7 @@ from semantic_kernel.processes.kernel_process import KernelProcessStep, KernelPr
 
 class FinalRecommendationStep(KernelProcessStep):
     @kernel_function(description="Retrieve final recommendation")
-    def retrieve_final_recommendation(self, alarm) -> str:
+    def retrieve_final_recommendation(self, alarm, kernel) -> str:
         return f"Final recommendation for alarm: {alarm}"
     
 __all__ = [

@@ -5,6 +5,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     azure_openai_model_deployment_name: str
     azure_ai_agent_endpoint: str
+    azure_ai_agent_api_version: str
     application_insights_connection_string: str
     azure_openai_transcription_model_deployment_name: str
     azure_openai_transcription_model_api_version: str

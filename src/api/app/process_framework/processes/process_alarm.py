@@ -14,32 +14,37 @@ from semantic_kernel.processes.kernel_process import KernelProcessStep, KernelPr
 from app.process_framework.steps.final_recommendation import FinalRecommendationStep
 from app.process_framework.steps.retrieve_alarm_documentation import RetrieveAlarmDocumentationStep
 from app.process_framework.steps.run_analysis import RunAnalysisStep
-#from semantic_kernel.processes.local_runtime import KernelProcessEvent, start
 
 def build_process_alarm_process():
-    # Create the process builder
-  process_builder = ProcessBuilder(
-    name="AlarmProcess",
-    event_namespace="Alarm",
-  )
+      # Create the process builder
+    process_builder = ProcessBuilder(
+      name="AlarmProcess",
+    )
 
-  # Add the steps
-  retrieve_alarm_documentation_step = process_builder.add_step(RetrieveAlarmDocumentationStep)
-  run_analysis_step = process_builder.add_step(RunAnalysisStep)
-  final_recommendation_step = process_builder.add_step(FinalRecommendationStep)
+    # Add the steps
+    retrieve_alarm_documentation_step = process_builder.add_step(RetrieveAlarmDocumentationStep)
+    run_analysis_step = process_builder.add_step(RunAnalysisStep)
+    final_recommendation_step = process_builder.add_step(FinalRecommendationStep)
 
-  # Orchestrate the events
-  process_builder.on_input_event("Start").send_event_to(target=retrieve_alarm_documentation_step)
+    # Orchestrate the events
+    process_builder.on_input_event("Start").send_event_to(target=retrieve_alarm_documentation_step)
 
-  retrieve_alarm_documentation_step.on_function_result().send_event_to( # type: ignore
-      target=run_analysis_step, function_name="run_analysis", parameter_name="alarm_documentation"
-  )
+    retrieve_alarm_documentation_step.on_function_result(
+        function_name=RetrieveAlarmDocumentationStep.retrieve_alarm_documentation.__name__
+    ).send_event_to(
+        target=run_analysis_step, function_name=RunAnalysisStep.run_analysis.__name__, parameter_name="alarm"
+    )
 
-  run_analysis_step.on_event("analysis_completed").send_event_to(target=final_recommendation_step)
+    #run_analysis_step.on_event("analysis_completed").send_event_to(target=final_recommendation_step)
+    run_analysis_step.on_function_result(
+        function_name=RunAnalysisStep.run_analysis.__name__
+    ).send_event_to(
+        target=final_recommendation_step, function_name=FinalRecommendationStep.retrieve_final_recommendation.__name__, parameter_name="alarm"
+    )
 
-  process = process_builder.build()
+    process = process_builder.build()
 
-  return process
+    return process
 
 __all__ = [
     "build_process_alarm_process",

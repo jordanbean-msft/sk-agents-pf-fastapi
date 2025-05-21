@@ -14,7 +14,7 @@ from semantic_kernel.processes.kernel_process import KernelProcessStep, KernelPr
 
 class RunAnalysisStep(KernelProcessStep):
     @kernel_function(description="Run analysis on alarm")
-    def run_analysis(self, alarm) -> str:
+    def run_analysis(self, alarm, kernel) -> str:
         return f"Running analysis on alarm: {alarm}"
     
 __all__ = [
