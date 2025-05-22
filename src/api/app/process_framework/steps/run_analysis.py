@@ -21,7 +21,7 @@ tracer = trace.get_tracer(__name__)
 class RunAnalysisStep(KernelProcessStep):
     @tracer.start_as_current_span("run_analysis_step")
     @kernel_function(description="Run analysis on alarm")
-    def run_analysis(self, alarm, kernel) -> str:
+    def run_analysis(self, alarm: str) -> str:
         logger.debug(f"Running analysis on alarm: {alarm}")
         return f"Running analysis on alarm: {alarm}"
 

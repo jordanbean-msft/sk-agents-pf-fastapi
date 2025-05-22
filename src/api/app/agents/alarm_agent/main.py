@@ -20,8 +20,6 @@ from app.services.dependencies import AIProjectClient
 
 logger = logging.getLogger("uvicorn.error")
 
-ALARM_AGENT_NAME = "alarm-agent"
-
 async def setup_file_search_tool(client: AIProjectClient, kernel: Kernel) -> FileSearchTool:
     file_search_tool = None
 
@@ -65,7 +63,7 @@ async def create_alarm_agent(client: AIProjectClient, kernel: Kernel) -> AzureAI
 
     agent_definition = await client.agents.create_agent(
         model=get_settings().azure_openai_model_deployment_name,
-        name=ALARM_AGENT_NAME,
+        name="alarm-agent",
         instructions=f"""
           You are a helpful assistant that can read alarms & make recommendations.
         """,
@@ -80,4 +78,4 @@ async def create_alarm_agent(client: AIProjectClient, kernel: Kernel) -> AzureAI
 
     return agent
 
-__all__ = ["create_alarm_agent", "ALARM_AGENT_NAME"]
+__all__ = ["create_alarm_agent"]

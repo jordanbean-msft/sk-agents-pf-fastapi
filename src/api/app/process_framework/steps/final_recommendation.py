@@ -20,7 +20,7 @@ tracer = trace.get_tracer(__name__)
 class FinalRecommendationStep(KernelProcessStep):
     @tracer.start_as_current_span("final_recommendation_step")
     @kernel_function(description="Generate final recommendation")
-    def retrieve_final_recommendation(self, alarm, kernel) -> str:
+    def retrieve_final_recommendation(self, alarm: str) -> str:
         logger.debug(f"Generating final recommendation for alarm: {alarm}")
         return f"Final recommendation for alarm: {alarm}"
     

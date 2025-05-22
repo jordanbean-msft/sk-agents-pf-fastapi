@@ -1,6 +1,7 @@
 import logging
 from opentelemetry import trace
 
+from semantic_kernel import Kernel
 from semantic_kernel.contents import FunctionCallContent, FunctionResultContent
 from semantic_kernel.contents.chat_message_content import ChatMessageContent
 from semantic_kernel.functions import kernel_function
@@ -9,8 +10,8 @@ from semantic_kernel.contents.chat_message_content import ChatMessageContent
 from semantic_kernel.functions import kernel_function
 from semantic_kernel.processes.kernel_process import KernelProcessStep
 
-from app.agents.alarm_agent.main import ALARM_AGENT_NAME
-from app.services.dependencies import get_create_agent_manager
+from app.services.agents import get_create_agent_manager
+
 
 logger = logging.getLogger("uvicorn.error")
 tracer = trace.get_tracer(__name__)
@@ -18,18 +19,18 @@ tracer = trace.get_tracer(__name__)
 class RetrieveAlarmDocumentationStep(KernelProcessStep):
     @tracer.start_as_current_span("retrieve_alarm_documentation_step")
     @kernel_function(description="Retrieve alarm documentation")
-    async def retrieve_alarm_documentation(self, alarm) -> str:
+    async def retrieve_alarm_documentation(self, alarm: str) -> str:
         logger.debug(f"Retrieving alarm documentation for: {alarm}")
         agent_manager = get_create_agent_manager()
         
         agent = None
         for a in agent_manager:
-            if a.name == ALARM_AGENT_NAME:
+            if a.name == "alarm-agent":
                 agent = a
                 break
 
         if not agent:
-            return f"{ALARM_AGENT_NAME} not found."
+            return f"alarm-agent not found."
 
         messages = [
             ChatMessageContent(

@@ -1,16 +1,14 @@
 from functools import lru_cache
-from typing import List
 from async_lru import alru_cache
 
 from openai import AsyncAzureOpenAI
 from semantic_kernel import Kernel
 from app.config import get_settings
 #from app.services.agent_manager import AgentManager
-from app.services.connection_manager import ConnectionManager
 from azure.identity.aio import DefaultAzureCredential
-from semantic_kernel.agents import AzureAIAgent, AzureAIAgentSettings
+from semantic_kernel.agents import AzureAIAgent
 from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
-from semantic_kernel.agents import Agent
+
 from azure.ai.projects.aio import AIProjectClient
 from azure.eventhub.aio import EventHubConsumerClient
 from azure.eventhub.extensions.checkpointstoreblobaio import (
@@ -59,9 +57,6 @@ def create_event_hub_client() -> EventHubConsumerClient:
     )
     return client
 
-def create_connection_manager() -> ConnectionManager:
-    return ConnectionManager()
-
 async def create_kernel() -> Kernel:
     kernel = Kernel()
 
@@ -72,9 +67,11 @@ async def create_kernel() -> Kernel:
 
     return kernel
 
-def create_agent_manager() -> List[Agent]:
-    agents: List[Agent] = []
-    return agents
+
+
+
+# def create_thread_manager() -> Dict[str, Queue]:
+#     return {}
 
 @lru_cache
 def get_create_ai_project_client() -> AIProjectClient:
@@ -84,10 +81,6 @@ def get_create_ai_project_client() -> AIProjectClient:
 def get_create_event_hub_consumer_client() -> EventHubConsumerClient:
     return create_event_hub_client()
 
-@lru_cache
-def get_create_connection_manager() -> ConnectionManager:
-    return create_connection_manager()
-
 @alru_cache
 async def get_create_async_azure_ai_client() -> AsyncAzureOpenAI:
     return await create_async_azure_ai_client()
@@ -96,27 +89,28 @@ async def get_create_async_azure_ai_client() -> AsyncAzureOpenAI:
 async def get_create_kernel() -> Kernel:
     return await create_kernel()
 
-@lru_cache
-def get_create_agent_manager() -> List[Agent]:
-    return create_agent_manager()
+
+
+# @lru_cache
+# def get_create_thread_manager() -> Dict[str, Queue]:
+#     return create_thread_manager()
+
 
 AIProjectClientDependency = Annotated[AIProjectClient, Depends(get_create_ai_project_client)]
 EventHubConsumerClientDependency = Annotated[EventHubConsumerClient, Depends(get_create_event_hub_consumer_client)]
-ConnectionManagerClientDependency = Annotated[ConnectionManager, Depends(get_create_connection_manager)]
 AsyncAzureAIClientDependency = Annotated[AsyncAzureOpenAI, Depends(get_create_async_azure_ai_client)]
 KernelDependency = Annotated[Kernel, Depends(get_create_kernel)]
-AgentManagerDependency = Annotated[List[Agent], Depends(get_create_agent_manager)]
+# ThreadManagerDependency = Annotated[Dict[str, Queue], Depends(get_create_thread_manager)]
 
 __all__ = [
     "AIProjectClientDependency", 
     "EventHubConsumerClientDependency", 
-    "ConnectionManagerClientDependency", 
     "AsyncAzureAIClientDependency", 
     "KernelDependency",
-    "AgentManagerDependency",
+    # "ThreadManagerDependency",
     "get_create_ai_project_client", 
     "get_create_event_hub_consumer_client", 
-    "get_create_connection_manager", 
     "get_create_async_azure_ai_client", 
     "get_create_kernel",
-    "get_create_agent_manager"]
+    # "get_create_thread_manager",
+]

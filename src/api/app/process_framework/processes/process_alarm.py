@@ -10,16 +10,17 @@ from semantic_kernel.contents import ChatHistory
 from semantic_kernel.functions import kernel_function
 from semantic_kernel.processes import ProcessBuilder
 from semantic_kernel.processes.kernel_process import KernelProcessStep, KernelProcessStepContext, KernelProcessStepState
+from semantic_kernel.processes.kernel_process.kernel_process import KernelProcess
 
 from app.process_framework.steps.final_recommendation import FinalRecommendationStep
 from app.process_framework.steps.retrieve_alarm_documentation import RetrieveAlarmDocumentationStep
 from app.process_framework.steps.run_analysis import RunAnalysisStep
 
-def build_process_alarm_process():
+def build_process_alarm_process() -> KernelProcess:
       # Create the process builder
     process_builder = ProcessBuilder(
       name="AlarmProcess",
-    )
+    ) # type: ignore
 
     # Add the steps
     retrieve_alarm_documentation_step = process_builder.add_step(RetrieveAlarmDocumentationStep)
