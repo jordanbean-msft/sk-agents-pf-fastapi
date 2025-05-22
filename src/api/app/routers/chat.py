@@ -26,7 +26,7 @@ from app.models.chat_get_image import ChatGetImageInput
 from app.models.chat_get_image_contents import ChatGetImageContents
 from app.models.chat_create_thread_output import ChatCreateThreadOutput
 from app.services.chat import build_chat_results, create_thread, get_thread
-from app.services.dependencies import AzureAIClient
+from app.services.dependencies import AIProjectClientDependency 
 
 logger = logging.getLogger("uvicorn.error")
 tracer = trace.get_tracer(__name__)
@@ -35,17 +35,17 @@ router = APIRouter()
 
 @tracer.start_as_current_span(name="create_thread")
 @router.post("/create_thread")
-async def create_thread_router(azure_ai_client: AzureAIClient):
+async def create_thread_router(azure_ai_client: AIProjectClientDependency):
     return await create_thread(azure_ai_client) 
 
 @tracer.start_as_current_span(name="get_thread")
 @router.get("/get_thread")
-async def get_thread_router(thread_input: ChatGetThreadInput, azure_ai_client: AzureAIClient):
+async def get_thread_router(thread_input: ChatGetThreadInput, azure_ai_client: AIProjectClientDependency):
     return await get_thread(thread_input, azure_ai_client) 
 
 @tracer.start_as_current_span(name="get_image_contents")
 @router.get("/get_image_contents")
-async def get_file_path_annotations(thread_input: ChatGetImageContents, azure_ai_client: AzureAIClient):
+async def get_file_path_annotations(thread_input: ChatGetImageContents, azure_ai_client: AIProjectClientDependency):
     messages = []
     async for msg in azure_ai_client.agents.messages.list(thread_id=thread_input.thread_id):
         messages.append(msg)
@@ -64,7 +64,7 @@ async def get_file_path_annotations(thread_input: ChatGetImageContents, azure_ai
 
 @tracer.start_as_current_span(name="get_image")
 @router.get("/get_image", response_class=Response)
-async def get_image(thread_input: ChatGetImageInput, azure_ai_client: AzureAIClient):   
+async def get_image(thread_input: ChatGetImageInput, azure_ai_client: AIProjectClientDependency):   
     file_content_stream = await azure_ai_client.agents.files.get_content(thread_input.file_id)
     if not file_content_stream:
         raise RuntimeError(f"No content retrievable for file ID '{thread_input.file_id}'.")
@@ -82,11 +82,11 @@ async def get_image(thread_input: ChatGetImageInput, azure_ai_client: AzureAICli
 
 @tracer.start_as_current_span(name="chat")
 @router.post("/chat")
-async def post_chat(chat_input: ChatInput, azure_ai_client: AzureAIClient):
+async def post_chat(chat_input: ChatInput, azure_ai_client: AIProjectClientDependency):
     return StreamingResponse(build_chat_results(chat_input, azure_ai_client))
 
 @router.post("/transcribe")
-async def transcribe(file: UploadFile, azure_ai_client: AzureAIClient):
+async def transcribe(file: UploadFile, azure_ai_client: AIProjectClientDependency):
     client = await azure_ai_client.inference.get_azure_openai_client(
         api_version=get_settings().azure_openai_transcription_model_api_version
     )
@@ -108,7 +108,7 @@ async def transcribe(file: UploadFile, azure_ai_client: AzureAIClient):
     return user_input.text
 
 @router.websocket('/realtime')
-async def realtime_endpoint(websocket: WebSocket,azure_ai_client: AzureAIClient):
+async def realtime_endpoint(websocket: WebSocket, azure_ai_client: AIProjectClientDependency):
     await websocket.accept()
     try:
         while True:

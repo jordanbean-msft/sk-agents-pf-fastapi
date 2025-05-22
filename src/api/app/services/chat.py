@@ -13,17 +13,17 @@ from app.models.chat_input import ChatInput
 from app.models.chat_output import ChatOutput, serialize_chat_output
 from app.models.content_type_enum import ContentTypeEnum
 from app.plugins.alarm_plugin import AlarmPlugin
-from app.services.dependencies import AzureAIClient
+from app.services.dependencies import AIProjectClient
 
 logger = logging.getLogger("uvicorn.error")
 tracer = trace.get_tracer(__name__)
 
-async def create_thread(azure_ai_client: AzureAIClient):
+async def create_thread(azure_ai_client: AIProjectClient):
         thread = await azure_ai_client.agents.threads.create()
 
         return ChatCreateThreadOutput(thread_id=thread.id)
 
-async def build_chat_results(chat_input: ChatInput, azure_ai_client: AzureAIClient):
+async def build_chat_results(chat_input: ChatInput, azure_ai_client: AIProjectClient):
     with tracer.start_as_current_span(name="build_chat_results"):
         alarm_agent = None
         try:        
@@ -94,7 +94,7 @@ async def get_agent_thread(chat_input, azure_ai_client, alarm_agent):
     
     return thread
 
-async def get_thread(thread_input: ChatGetThreadInput, azure_ai_client: AzureAIClient):
+async def get_thread(thread_input: ChatGetThreadInput, azure_ai_client: AIProjectClient):
         messages = []
         async for msg in azure_ai_client.agents.messages.list(thread_id=thread_input.thread_id):
             messages.append(msg)

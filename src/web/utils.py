@@ -71,7 +71,6 @@ def push_to_event_hub():
     :param eventhub_name: The name of the Event Hub.  
     """  
     try:  
-        credential = DefaultAzureCredential()
         # Create a producer client to send messages to the event hub.  
         producer = EventHubProducerClient(
             fully_qualified_namespace=get_settings().event_hub_fully_qualified_namespace,

@@ -16,11 +16,13 @@ from azure.ai.agents.models import (
 
 from app.config import get_settings
 from app.models.chat_output_message import ChatOutputMessage
-from app.services.dependencies import AzureAIClient
+from app.services.dependencies import AIProjectClient
 
 logger = logging.getLogger("uvicorn.error")
 
-async def setup_file_search_tool(client: AzureAIClient, kernel: Kernel) -> FileSearchTool:
+ALARM_AGENT_NAME = "alarm-agent"
+
+async def setup_file_search_tool(client: AIProjectClient, kernel: Kernel) -> FileSearchTool:
     file_search_tool = None
 
     try:
@@ -52,7 +54,7 @@ async def setup_file_search_tool(client: AzureAIClient, kernel: Kernel) -> FileS
 
     return file_search_tool
 
-async def create_alarm_agent(client: AzureAIClient, kernel: Kernel) -> AzureAIAgent:
+async def create_alarm_agent(client: AIProjectClient, kernel: Kernel) -> AzureAIAgent:
     code_interpreter = CodeInterpreterTool()
 
     file_search_tool = await setup_file_search_tool(client, kernel)
@@ -63,7 +65,7 @@ async def create_alarm_agent(client: AzureAIClient, kernel: Kernel) -> AzureAIAg
 
     agent_definition = await client.agents.create_agent(
         model=get_settings().azure_openai_model_deployment_name,
-        name="alarm-agent",
+        name=ALARM_AGENT_NAME,
         instructions=f"""
           You are a helpful assistant that can read alarms & make recommendations.
         """,
@@ -78,4 +80,4 @@ async def create_alarm_agent(client: AzureAIClient, kernel: Kernel) -> AzureAIAg
 
     return agent
 
-__all__ = ["create_alarm_agent"]
+__all__ = ["create_alarm_agent", "ALARM_AGENT_NAME"]
