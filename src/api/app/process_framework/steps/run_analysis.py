@@ -1,30 +1,67 @@
 import asyncio
 import logging
-from typing import ClassVar
 from opentelemetry import trace
 from venv import logger
+from enum import StrEnum, auto
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
-from semantic_kernel import Kernel
-from semantic_kernel.connectors.ai.chat_completion_client_base import ChatCompletionClientBase
-from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
-from semantic_kernel.contents import ChatHistory
 from semantic_kernel.functions import kernel_function
-from semantic_kernel.processes import ProcessBuilder
-from semantic_kernel.processes.kernel_process import KernelProcessStep, KernelProcessStepContext, KernelProcessStepState
-#from semantic_kernel.processes.local_runtime import KernelProcessEvent, start
+from semantic_kernel.processes.kernel_process import KernelProcessStep, KernelProcessStepContext, KernelProcessStepState, kernel_process_step_metadata
+from semantic_kernel.kernel_pydantic import KernelBaseModel
+
+from app.process_framework.steps.retrieve_alarm_documentation import RetrieveAlarmDocumentationParameters
 
 logger  = logging.getLogger("uvicorn.error")
 tracer = trace.get_tracer(__name__)
 
+class RetrieveAlarmDocumentationState(KernelBaseModel):
+    analysis_results: str
+
+class RunAnalysisParameters(BaseModel):
+    alarm: str
+    systems_number: int
+
+@kernel_process_step_metadata("RunAnalysisStep")
 class RunAnalysisStep(KernelProcessStep):
-    @tracer.start_as_current_span("run_analysis_step")
-    @kernel_function(description="Run analysis on alarm")
-    def run_analysis(self, alarm: str) -> str:
-        logger.debug(f"Running analysis on alarm: {alarm}")
-        return f"Running analysis on alarm: {alarm}"
+    class Functions(StrEnum):
+        RunAnalysis = auto()
+
+    class OutputEvents(StrEnum):
+        AnalysisComplete = auto()
+        AnalysisError = auto()
+
+    @tracer.start_as_current_span(Functions.RunAnalysis)
+    @kernel_function(name=Functions.RunAnalysis)
+    async def run_analysis(self, context: KernelProcessStepContext, params: RunAnalysisParameters):
+        logger.debug(f"Running analysis on alarm: {params.alarm} with systems number: {params.systems_number}")
+        await asyncio.sleep(5)
+        
+        logger.debug(f"Analysis complete for alarm: {params.alarm} with systems number: {params.systems_number}")
+        await context.emit_event(
+            process_event=self.OutputEvents.AnalysisComplete,
+            data=RetrieveAlarmDocumentationParameters(
+                alarm=params.alarm,
+                systems_number=params.systems_number,
+                error_message="",
+                analysis=f"Analysis results for alarm: {params.alarm} with systems number: {params.systems_number}"
+            )
+        )
+
+        # TODO: Handle the case where the analysis fails
+        if params.systems_number == -1:
+            logger.debug(f"Analysis error for alarm: {params.alarm} with systems number: {params.systems_number}")
+            await context.emit_event(
+                process_event=self.OutputEvents.AnalysisError,
+                data=RetrieveAlarmDocumentationParameters(
+                    alarm=params.alarm,
+                    systems_number=params.systems_number,
+                    error_message="Analysis failed",
+                    analysis=""
+                )
+            )
 
 __all__ = [
     "RunAnalysisStep",
+    "RunAnalysisParameters",
 ]

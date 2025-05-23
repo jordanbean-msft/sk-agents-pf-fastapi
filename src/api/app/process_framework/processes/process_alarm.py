@@ -1,5 +1,8 @@
 import asyncio
 from typing import ClassVar
+import logging
+from opentelemetry import trace
+from enum import Enum
 
 from pydantic import BaseModel, Field
 
@@ -12,9 +15,11 @@ from semantic_kernel.processes import ProcessBuilder
 from semantic_kernel.processes.kernel_process import KernelProcessStep, KernelProcessStepContext, KernelProcessStepState
 from semantic_kernel.processes.kernel_process.kernel_process import KernelProcess
 
+from app.process_framework.steps import determine_affected_systems
 from app.process_framework.steps.final_recommendation import FinalRecommendationStep
 from app.process_framework.steps.retrieve_alarm_documentation import RetrieveAlarmDocumentationStep
 from app.process_framework.steps.run_analysis import RunAnalysisStep
+from app.process_framework.steps.determine_affected_systems import DetermineAffectedSystemsStep
 
 def build_process_alarm_process() -> KernelProcess:
       # Create the process builder
@@ -23,25 +28,40 @@ def build_process_alarm_process() -> KernelProcess:
     ) # type: ignore
 
     # Add the steps
+    determine_affected_systems_step = process_builder.add_step(DetermineAffectedSystemsStep)
     retrieve_alarm_documentation_step = process_builder.add_step(RetrieveAlarmDocumentationStep)
     run_analysis_step = process_builder.add_step(RunAnalysisStep)
     final_recommendation_step = process_builder.add_step(FinalRecommendationStep)
 
     # Orchestrate the events
-    process_builder.on_input_event("Start").send_event_to(target=retrieve_alarm_documentation_step)
+    process_builder.on_input_event("Start").send_event_to(
+        target=determine_affected_systems_step,
+        parameter_name="alarm",
+        )
 
-    retrieve_alarm_documentation_step.on_function_result(
-        function_name=RetrieveAlarmDocumentationStep.retrieve_alarm_documentation.__name__
-    ).send_event_to(
-        target=run_analysis_step, function_name=RunAnalysisStep.run_analysis.__name__, parameter_name="alarm"
+    determine_affected_systems_step.on_event(DetermineAffectedSystemsStep.OutputEvents.CountOfAffectedSystems).send_event_to(
+        target=final_recommendation_step, function_name=FinalRecommendationStep.Functions.SetCountOfAffectedSystems, parameter_name="count"
     )
 
-    #run_analysis_step.on_event("analysis_completed").send_event_to(target=final_recommendation_step)
-    run_analysis_step.on_function_result(
-        function_name=RunAnalysisStep.run_analysis.__name__
+    determine_affected_systems_step.on_event(
+        DetermineAffectedSystemsStep.OutputEvents.AffectedSystemsDetermined
     ).send_event_to(
-        target=final_recommendation_step, function_name=FinalRecommendationStep.retrieve_final_recommendation.__name__, parameter_name="alarm"
-    )
+        target=run_analysis_step, function_name=RunAnalysisStep.Functions.RunAnalysis, parameter_name="params"
+    )       
+
+    run_analysis_step.on_event(
+        RunAnalysisStep.OutputEvents.AnalysisComplete
+    ).send_event_to(
+        target=retrieve_alarm_documentation_step, 
+        function_name=RetrieveAlarmDocumentationStep.Functions.RetrieveAlarmDocumentation, 
+        parameter_name="params"
+    )   
+
+    retrieve_alarm_documentation_step.on_event(
+        RetrieveAlarmDocumentationStep.OutputEvents.AlarmDocumentationRetrieved
+    ).send_event_to(
+        target=final_recommendation_step, function_name=FinalRecommendationStep.Functions.RetrieveFinalRecommendation, parameter_name="params"
+    )   
 
     process = process_builder.build()
 

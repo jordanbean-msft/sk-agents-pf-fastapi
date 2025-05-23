@@ -1,0 +1,41 @@
+%% stateDiagram-v2
+%%     [*] -->  new_event_alarm
+%%     new_event_alarm --> API
+%%     API --> start_alarm_process
+%%     start_alarm_process -->  retrieve_documentation_step
+%%     retrieve_documentation_step --> run_analysis
+%%     run_analysis --> final_recommendation
+%%     final_recommendation --> update_ui
+%%     update_ui --> [*]
+
+stateDiagram-v2
+    run_analysis1: "Run analysis on affected line 1 for hour 10"
+    run_analysis2: "Run analysis on affected line 1 for hour 3"
+    run_analysis3: "Run analysis on affected line 1 for hour 6"
+    retrieve_alarm_documentation1: "Retrieve alarm documentation for affected line 1"
+    retrieve_alarm_documentation2: "Retrieve alarm documentation for affected line 2"
+    retrieve_alarm_documentation3: "Retrieve alarm documentation for affected line 3"
+
+    [*] -->  new_event_alarm
+    new_event_alarm --> API
+    API --> alarm_process
+    state alarm_process {
+        [*] --> determine_affected_systems
+        %% determine_affected_systems --> final_recommendation: "count of affected systems event"
+        state fork_state <<fork>>
+            determine_affected_systems --> fork_state
+            fork_state --> run_analysis1
+            run_analysis1 --> retrieve_alarm_documentation1
+            fork_state --> run_analysis2
+            run_analysis2 --> retrieve_alarm_documentation2
+            fork_state --> run_analysis3
+            run_analysis3 --> retrieve_alarm_documentation3
+        state join_state <<join>>
+            retrieve_alarm_documentation1 --> join_state
+            retrieve_alarm_documentation2 --> join_state
+            retrieve_alarm_documentation3 --> join_state
+            join_state --> final_recommendation
+            %%final_recommendation --> final_recommendation: "wait for all analyses to finish"
+    }
+    final_recommendation --> update_ui: "all analyses finished"
+    update_ui --> [*]

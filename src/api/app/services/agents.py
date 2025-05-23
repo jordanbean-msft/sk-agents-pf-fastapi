@@ -29,18 +29,13 @@ async def delete_agents():
     agent_manager = get_create_agent_manager()
 
     for agent in agent_manager:
-        if agent.name == "AlarmAgent":
-            agent_manager.remove(agent)
-            client = get_create_ai_project_client()
-            client.agents.delete_agent(agent.id)
-            break
-        
-
+        agent_manager.remove(agent)
+        client = get_create_ai_project_client()
+        client.agents.delete_agent(agent.id)
 
 def create_agent_manager() -> List[Agent]:
     agents: List[Agent] = []
     return agents
-
 
 @lru_cache
 def get_create_agent_manager() -> List[Agent]:

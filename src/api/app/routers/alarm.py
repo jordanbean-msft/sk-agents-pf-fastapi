@@ -1,3 +1,4 @@
+import json
 import logging
 import cloudevents
 import cloudevents.http
@@ -8,10 +9,13 @@ from azure.core.exceptions import AzureError
 import asyncio
 from asyncio import Queue
 
-from semantic_kernel.processes.kernel_process import KernelProcessEvent
+from semantic_kernel.processes.kernel_process import KernelProcessEvent, KernelProcessStepState
 from semantic_kernel.processes.local_runtime.local_kernel_process import start
 
+from app.models.chat_output import ChatOutput, serialize_chat_output
+from app.models.content_type_enum import ContentTypeEnum
 from app.process_framework.processes.process_alarm import build_process_alarm_process
+from app.process_framework.steps.final_recommendation import FinalRecommendationState, FinalRecommendationStep
 from app.services.connections import ConnectionManagerClientDependency
 from app.services.dependencies import get_create_event_hub_consumer_client, get_create_kernel
 #from app.services.processes import get_create_process_alarm_process
@@ -33,32 +37,37 @@ async def on_event(partition_context, event):
 
         kernel = await get_create_kernel()        
 
-        #queue = Queue()
-        #alarm_event_client = AlarmEventClient(queue)
         process = build_process_alarm_process()
 
         async with await start(
-            #process=get_create_process_alarm_process(),
             process=process,
             kernel=kernel,
             initial_event=KernelProcessEvent(id="Start", data=str(decoded_event.data)),
-            # TODO: pass in the alarm_event_client here when support is added for this parameter
         ) as process_context:
-            _ = await process_context.get_state()
-            metadata = _.to_process_state_metadata()
-            
-        # final_result = ChatOutput(
-        #     content_type=ContentTypeEnum.MARKDOWN,
-        #     content=final_content,
-        #     thread_id=thread_output.thread_id,
-        # )
+            process_state = await process_context.get_state()
 
-        # final_result_str = json.dumps(
-        #     obj=final_result,
-        #     default=serialize_chat_output,
-        # )
+            final_recommendation_state: KernelProcessStepState[FinalRecommendationState] = next(
+                (s.state for s in process_state.steps if s.state.name == FinalRecommendationStep.__name__), None
+            ) # type: ignore
 
-        # await send_message(thread_output.thread_id, "")
+            if final_recommendation_state:
+                logger.debug(f"Final recommendation state: {final_recommendation_state}")
+
+                final_result = ChatOutput(
+                    content_type=ContentTypeEnum.MARKDOWN,
+                    content=final_recommendation_state.state.final_answer.strip(), # type: ignore
+                    thread_id="asdf",
+                )
+
+                final_result_str = json.dumps(
+                    obj=final_result,
+                    default=serialize_chat_output,
+                )
+
+                await send_message("asdf", final_result_str)
+
+            else:
+                logger.error("Final recommendation step not found in process state.")
 
         await partition_context.update_checkpoint(event)
     except Exception as e:
