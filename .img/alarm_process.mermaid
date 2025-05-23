@@ -9,12 +9,12 @@
 %%     update_ui --> [*]
 
 stateDiagram-v2
-    run_analysis1: "Run analysis on affected line 1 for hour 10"
-    run_analysis2: "Run analysis on affected line 1 for hour 3"
-    run_analysis3: "Run analysis on affected line 1 for hour 6"
-    retrieve_alarm_documentation1: "Retrieve alarm documentation for affected line 1"
-    retrieve_alarm_documentation2: "Retrieve alarm documentation for affected line 2"
-    retrieve_alarm_documentation3: "Retrieve alarm documentation for affected line 3"
+    run_analysis1: "Run analysis on affected system 1"
+    run_analysis2: "Run analysis on affected system 2"
+    run_analysis3: "Run analysis on affected system 3"
+    retrieve_alarm_documentation1: "Retrieve alarm documentation for affected system 1"
+    retrieve_alarm_documentation2: "Retrieve alarm documentation for affected system 2"
+    retrieve_alarm_documentation3: "Retrieve alarm documentation for affected system 3"
 
     [*] -->  new_event_alarm
     new_event_alarm --> API
