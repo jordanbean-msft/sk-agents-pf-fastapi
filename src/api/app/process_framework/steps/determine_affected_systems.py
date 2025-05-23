@@ -4,6 +4,7 @@ from opentelemetry import trace
 from venv import logger
 from enum import StrEnum, auto
 
+from pydantic import Field
 from semantic_kernel.functions import kernel_function
 from semantic_kernel.processes.kernel_process import KernelProcessStep, KernelProcessStepContext, KernelProcessStepState, kernel_process_step_metadata
 from semantic_kernel.kernel_pydantic import KernelBaseModel
@@ -13,17 +14,22 @@ from app.process_framework.steps.run_analysis import RunAnalysisParameters
 logger  = logging.getLogger("uvicorn.error")
 tracer = trace.get_tracer(__name__)
 
-class RetrieveAlarmDocumentationState(KernelBaseModel):
-    analysis_results: str
+class DetermineAffectedSystemsState(KernelBaseModel):
+    analysis_results: str = ""
 
 @kernel_process_step_metadata("DetermineAffectedSystemsStep")
 class DetermineAffectedSystemsStep(KernelProcessStep):
+    state: DetermineAffectedSystemsState = Field(default_factory=DetermineAffectedSystemsState) # type: ignore
+
     class Functions(StrEnum):
         DetermineAffectedSystems = auto()
 
     class OutputEvents(StrEnum):
         CountOfAffectedSystems = auto()
         AffectedSystemsDetermined = auto()
+
+    async def activate(self, state: KernelProcessStepState[DetermineAffectedSystemsState]):
+        self.state = state.state # type: ignore
 
     @tracer.start_as_current_span(Functions.DetermineAffectedSystems)
     @kernel_function(name=Functions.DetermineAffectedSystems)

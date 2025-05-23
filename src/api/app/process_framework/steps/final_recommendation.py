@@ -42,6 +42,9 @@ class FinalRecommendationStep(KernelProcessStep[FinalRecommendationState]):
         FinalRecommendationComplete = auto()
         AffectedSystemAnalysisRecieved = auto()
 
+    async def activate(self, state: KernelProcessStepState[FinalRecommendationState]):
+        self.state = state.state # type: ignore
+
     @tracer.start_as_current_span(Functions.SetCountOfAffectedSystems)
     @kernel_function(name=Functions.SetCountOfAffectedSystems)
     def set_count_of_affected_systems(self, count: int) -> None:
