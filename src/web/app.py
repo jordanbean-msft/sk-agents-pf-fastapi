@@ -152,6 +152,7 @@ import time
 import threading
 import queue
 import json
+import uuid
 import websocket
 from streamlit_autorefresh import st_autorefresh
 
@@ -220,11 +221,11 @@ def on_close(ws, close_status_code, close_msg):
     print("WebSocket connection closed")
 
 
-def run_websocket(msg_queue):
+def run_websocket(msg_queue, client_id):
     base_uri = get_settings().services__api__api__0
     # remove the protocol from the environment variable
     raw_uri = base_uri.replace("https://", "").replace("http://", "")
-    uri = f"ws://{raw_uri}/v1/alarm/1"
+    uri = f"ws://{raw_uri}/v1/alarm/{client_id}"
     ws = websocket.WebSocketApp(
         uri,
         on_message=make_on_message(msg_queue),
@@ -236,11 +237,16 @@ def run_websocket(msg_queue):
     print("WebSocket thread started")
 
 
+if 'client_id' not in st.session_state:
+    st.session_state.client_id = str(uuid.uuid4())
+    print(f"Client ID: {st.session_state.client_id}")
+
 if 'ws_thread' not in st.session_state:
     t = threading.Thread(
         target=run_websocket,
-        args=(st.session_state.msg_queue,),
-        daemon=True)
+        args=(st.session_state.msg_queue, st.session_state.client_id),
+        daemon=True
+    )
     t.start()
     st.session_state.ws_thread = t
 
@@ -306,7 +312,7 @@ if selected_tab == "Chat":
 
 elif selected_tab == "Event Creation":
     if st.button("Create Event"):
-        message = push_to_event_hub()
+        message = push_to_event_hub(st.session_state.client_id)
         st.json(message)
         time.sleep(2)
 

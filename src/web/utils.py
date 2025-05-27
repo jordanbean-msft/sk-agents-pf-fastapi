@@ -1,3 +1,4 @@
+import json
 import logging
 from azure.eventhub import EventHubProducerClient, EventData
 from azure.cosmos import CosmosClient, PartitionKey
@@ -63,7 +64,7 @@ def get_system_chats(user_id):
 logger = logging.getLogger(__name__)
 
 
-def push_to_event_hub():
+def push_to_event_hub(client_id: str):
     """
     Sends a single message to the specified Azure Event Hub.
 
@@ -85,10 +86,12 @@ def push_to_event_hub():
             event_batch = producer.create_batch()
 
             with open('sample_red_flag.json', 'r', encoding='utf-8') as f:
-                message = f.read()
+                message = json.loads(f.read())
+
+            message['client_id'] = client_id
 
             # Add your message as an EventData. You can also send bytes or JSON strings.
-            event_batch.add(EventData(message))
+            event_batch.add(EventData(json.dumps(message)))
 
             logger.debug(event_batch)
 

@@ -40,10 +40,12 @@ async def on_event(partition_context, event):
 
         # emit_event, _, queue = chat_context_var.get()
 
-        queue = get_create_connection_manager().get_queue("1")
+        client_id = decoded_event['client_id']
+
+        queue = get_create_connection_manager().get_queue(client_id)
 
         if not queue:
-            logger.error("Queue not found for client_id '1'.")
+            logger.error(f"Queue not found for client_id '{client_id}'.")
             return
 
         # thread_output = await create_thread(azure_ai_client)
@@ -87,7 +89,7 @@ async def run_alarm_process(decoded_event):
                 default=serialize_chat_output,
             )
 
-            await send_message("asdf", final_result_str)
+            await send_message(decoded_event['client_id'], "asdf", final_result_str)
 
         else:
             logger.error("Final recommendation step not found in process state.")
@@ -156,16 +158,16 @@ async def websocket_connect(websocket: WebSocket,
             logger.debug(f"Sent message to client {client_id}: {msg}")
 
 
-async def send_message(thread_id: str, message: str):
-    queue = get_create_connection_manager().get_queue("1")
+async def send_message(client_id: str, thread_id: str, message: str):
+    queue = get_create_connection_manager().get_queue(client_id)
 
     if not queue:
-        logger.error(f"Queue not found for thread_id: {thread_id}")
-        raise HTTPException(status_code=404, detail="Queue not found for thread_id.")
+        logger.error(f"Queue not found for client_id: {client_id}")
+        raise HTTPException(status_code=404, detail="Queue not found for client_id.")
 
     try:
         await queue.put(message)
-        logger.info(f"Message put on queue to thread_id {thread_id}: {message}")
+        logger.info(f"Message put on queue to client_id {client_id}: {message}")
 
     except Exception as e:
         logger.error(f"Failed to send message: {e}")
