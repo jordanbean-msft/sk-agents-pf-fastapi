@@ -53,29 +53,44 @@ async def setup_file_search_tool(client: AIProjectClient, kernel: Kernel) -> Fil
     return file_search_tool
 
 async def create_alarm_agent(client: AIProjectClient, kernel: Kernel) -> AzureAIAgent:
-    code_interpreter = CodeInterpreterTool()
+    azure_ai_agent = None
 
-    file_search_tool = await setup_file_search_tool(client, kernel)
+    async for agent in client.agents.list_agents():
+        if agent.name == "alarm-agent":
+            logger.info(f"Found existing alarm-agent: {agent.id}")
+            agent = await client.agents.get_agent(agent.id)
+            azure_ai_agent = AzureAIAgent(
+                client=client,
+                definition=agent,
+                kernel=kernel
+            )
+            break
 
-    toolset = ToolSet()
-    toolset.add(code_interpreter)
-    toolset.add(file_search_tool)
+    if not azure_ai_agent:
+        logger.info("Creating new alarm-agent...")
+        code_interpreter = CodeInterpreterTool()
 
-    agent_definition = await client.agents.create_agent(
-        model=get_settings().azure_openai_model_deployment_name,
-        name="alarm-agent",
-        instructions=f"""
-          You are a helpful assistant that can read alarms & make recommendations.
-        """,
-        toolset=toolset,
-    )
+        file_search_tool = await setup_file_search_tool(client, kernel)
 
-    agent = AzureAIAgent(
-        client=client,
-        definition=agent_definition,
-        kernel=kernel
-    )
+        toolset = ToolSet()
+        toolset.add(code_interpreter)
+        toolset.add(file_search_tool)
 
-    return agent
+        agent_definition = await client.agents.create_agent(
+            model=get_settings().azure_openai_model_deployment_name,
+            name="alarm-agent",
+            instructions=f"""
+            You are a helpful assistant that can read alarms & make recommendations.
+            """,
+            toolset=toolset,
+        )
+
+        azure_ai_agent = AzureAIAgent(
+            client=client,
+            definition=agent_definition,
+            kernel=kernel
+        )
+
+    return azure_ai_agent
 
 __all__ = ["create_alarm_agent"]

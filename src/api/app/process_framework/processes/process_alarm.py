@@ -39,6 +39,7 @@ def build_process_alarm_process() -> KernelProcess:
         parameter_name="alarm",
         )
 
+    # this passes the number of fan out steps to the final recommendation step that the fan in step needs to wait for
     determine_affected_systems_step.on_event(DetermineAffectedSystemsStep.OutputEvents.CountOfAffectedSystems).send_event_to(
         target=final_recommendation_step, function_name=FinalRecommendationStep.Functions.SetCountOfAffectedSystems, parameter_name="count"
     )
