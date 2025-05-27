@@ -283,7 +283,7 @@ selected_tab = st.sidebar.radio("Navigate", ["Chat", "Event Creation"])
 if selected_tab == "Chat":
     # — your existing sidebar chat‑list code —
     st.sidebar.markdown("#### System Chats")
-    for chat in st.session_state.sys_chats:
+    for chat in reversed(st.session_state.sys_chats):
         st.markdown(chat["content"], unsafe_allow_html=True)
     # for chat in st.session_state.sys_chats:
     #     if st.sidebar.button(chat["chat_title"], key=f"sid_sys_{chat['chat_title']}"):

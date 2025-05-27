@@ -1,5 +1,5 @@
 import asyncio
-from typing import ClassVar
+from typing import Awaitable, Callable, ClassVar
 import logging
 from enum import StrEnum, auto
 from opentelemetry import trace
@@ -27,6 +27,7 @@ class FinalRecommendationParameters(BaseModel):
     systems_number: int
     error_message: str = ""
     documentation: str = ""
+    send_message: Callable[[str], Awaitable[None]] | None = None
 
 
 class FinalRecommendationState(KernelBaseModel):

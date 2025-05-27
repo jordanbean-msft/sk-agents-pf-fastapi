@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from typing import Awaitable, Callable
 from venv import logger
 from enum import StrEnum, auto
 from opentelemetry import trace
@@ -29,6 +30,7 @@ class RetrieveAlarmDocumentationState(KernelBaseModel):
 class RunAnalysisParameters(BaseModel):
     alarm: str
     systems_number: int
+    send_message: Callable[[str], Awaitable[None]] | None = None
 
 
 @kernel_process_step_metadata("RunAnalysisStep")
@@ -55,6 +57,14 @@ Running analysis on alarm: {params.alarm} with systems number: {params.systems_n
             Analysis complete for alarm: {params.alarm} with systems number: {params.systems_number}
             """
         )
+
+        await params.send_message(
+            f"""***
+# Run Analysis
+Analysis complete for alarm: ```{params.alarm}``` with systems number: `{params.systems_number}`
+            """,
+        )  # type: ignore
+
         await context.emit_event(
             process_event=self.OutputEvents.AnalysisComplete,
             data=RetrieveAlarmDocumentationParameters(
@@ -63,7 +73,8 @@ Running analysis on alarm: {params.alarm} with systems number: {params.systems_n
                 error_message="",
                 analysis=f"""
 Analysis results for alarm: {params.alarm} with systems number: {params.systems_number}
-                """
+                """,
+                send_message=params.send_message
             )
         )
 

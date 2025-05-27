@@ -13,6 +13,7 @@ from semantic_kernel.processes.local_runtime.local_kernel_process import start
 from app.models.chat_output import ChatOutput, serialize_chat_output
 from app.models.content_type_enum import ContentTypeEnum
 from app.process_framework.processes.process_alarm import build_process_alarm_process
+from app.process_framework.steps.determine_affected_systems import DetermineAffectedSystemsParameters
 from app.process_framework.steps.final_recommendation import (
     FinalRecommendationState,
     FinalRecommendationStep
@@ -62,12 +63,36 @@ async def on_event(partition_context, event):
 async def run_alarm_process(decoded_event):
     kernel = await get_create_kernel()
 
+    # Capture decoded_event['client_id'] and thread_id in the lambda for send_message
+    client_id = decoded_event['client_id']
+    thread_id = "asdf"
+
+    async def send_message_lambda(message: str):
+        final_result = ChatOutput(
+            content_type=ContentTypeEnum.MARKDOWN,
+            content=message,
+            thread_id=thread_id,
+        )
+
+        final_result_str = json.dumps(
+            obj=final_result,
+            default=serialize_chat_output,
+        )
+
+        await send_message(client_id, thread_id, final_result_str)
+
     process = build_process_alarm_process()
 
     async with await start(
         process=process,
         kernel=kernel,
-        initial_event=KernelProcessEvent(id="Start", data=str(decoded_event.data)),
+        initial_event=KernelProcessEvent(
+            id="Start",
+            data=DetermineAffectedSystemsParameters(
+                alarm=str(decoded_event.data),
+                send_message=send_message_lambda,
+            )
+        ),
     ) as process_context:
         process_state = await process_context.get_state()
 
@@ -78,18 +103,11 @@ async def run_alarm_process(decoded_event):
         if final_recommendation_state:
             logger.debug(f"Final recommendation state: {final_recommendation_state}")
 
-            final_result = ChatOutput(
-                content_type=ContentTypeEnum.MARKDOWN,
-                content=final_recommendation_state.state.final_answer.strip(),  # type: ignore
-                thread_id="asdf",
-            )
-
-            final_result_str = json.dumps(
-                obj=final_result,
-                default=serialize_chat_output,
-            )
-
-            await send_message(decoded_event['client_id'], "asdf", final_result_str)
+            await send_message_lambda(f"""***
+# Final Recommendation
+{final_recommendation_state.state.final_answer.strip()}
+"""
+            )  # type: ignore
 
         else:
             logger.error("Final recommendation step not found in process state.")
@@ -136,10 +154,10 @@ async def websocket_connect(websocket: WebSocket,
     """
     try:
         await websocket_connection_manager.connect(websocket, client_id)
-        logger.info(f"WebSocket connection established for thread_id: {client_id}")
+        logger.info(f"WebSocket connection established for client_id: {client_id}")
     except WebSocketDisconnect:
         websocket_connection_manager.disconnect(client_id)
-        logger.info(f"WebSocket connection closed for thread_id: {client_id}")
+        logger.info(f"WebSocket connection closed for client_id: {client_id}")
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
         raise HTTPException(status_code=500, detail="WebSocket error.") from e

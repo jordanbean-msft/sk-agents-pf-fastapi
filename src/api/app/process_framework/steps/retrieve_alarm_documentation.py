@@ -1,5 +1,5 @@
 import logging
-from typing import ClassVar
+from typing import Awaitable, Callable, ClassVar
 from enum import StrEnum, auto
 from opentelemetry import trace
 
@@ -28,6 +28,7 @@ class RetrieveAlarmDocumentationParameters(BaseModel):
     systems_number: int
     analysis: str
     error_message: str
+    send_message: Callable[[str], Awaitable[None]] | None = None
 
 
 class RetrieveAlarmDocumentationState(KernelBaseModel):
@@ -90,12 +91,22 @@ Retrieving alarm documentation for: {params.alarm} with systems number: {params.
 
         self.state.chat_history.add_assistant_message(final_response)  # type: ignore
 
+        await params.send_message(
+            f"""***
+# Retrieve Alarm Documentation
+Retrieved documentation for alarm ```{params.alarm}```.
+## Response
+{final_response}
+"""
+        )  # type: ignore
+
         await context.emit_event(
             process_event=self.OutputEvents.AlarmDocumentationRetrieved,
             data=FinalRecommendationParameters(
                 alarm=params.alarm,
                 systems_number=params.systems_number,
-                documentation=final_response
+                documentation=final_response,
+                send_message=params.send_message,
             )
         )
 

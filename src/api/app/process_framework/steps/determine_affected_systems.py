@@ -1,5 +1,6 @@
 import logging
 import time
+from typing import Awaitable, Callable
 from venv import logger
 from enum import StrEnum, auto
 from opentelemetry import trace
@@ -24,6 +25,11 @@ class DetermineAffectedSystemsState(KernelBaseModel):
     analysis_results: str = ""
 
 
+class DetermineAffectedSystemsParameters(KernelBaseModel):
+    alarm: str = ""
+    send_message: Callable[[str], Awaitable[None]] | None = None
+
+
 @kernel_process_step_metadata("DetermineAffectedSystemsStep")
 class DetermineAffectedSystemsStep(KernelProcessStep):
     state: DetermineAffectedSystemsState = Field(
@@ -41,8 +47,10 @@ class DetermineAffectedSystemsStep(KernelProcessStep):
 
     @tracer.start_as_current_span(Functions.DetermineAffectedSystems)
     @kernel_function(name=Functions.DetermineAffectedSystems)
-    async def determine_affected_systems(self, context: KernelProcessStepContext, alarm: str):
-        logger.debug(f"Determining affected systems for alarm: {alarm}")
+    async def determine_affected_systems(self,
+                                         context: KernelProcessStepContext,
+                                         params: DetermineAffectedSystemsParameters):
+        logger.debug(f"Determining affected systems for alarm: {params.alarm}")
 
         time.sleep(5)
 
@@ -53,16 +61,27 @@ class DetermineAffectedSystemsStep(KernelProcessStep):
             data=count_of_affected_systems
         )
 
+        await params.send_message("""
+# Determining affected systems.
+""")  # type: ignore
+
         for i in range(count_of_affected_systems):
+            await params.send_message(f"""
+Affected system {i} detected.
+"""  # type: ignore
+            )
+
             await context.emit_event(
                 process_event=self.OutputEvents.AffectedSystemsDetermined,
                 data=RunAnalysisParameters(
-                    alarm=alarm,
-                    systems_number=i
+                    alarm=params.alarm,
+                    systems_number=i,
+                    send_message=params.send_message
                 ))
-            logger.debug(f"Affected system {i} detected.")
 
 
 __all__ = [
     "DetermineAffectedSystemsStep",
+    "DetermineAffectedSystemsState",
+    "DetermineAffectedSystemsParameters",
 ]

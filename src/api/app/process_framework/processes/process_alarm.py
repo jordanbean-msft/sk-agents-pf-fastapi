@@ -22,7 +22,7 @@ def build_process_alarm_process() -> KernelProcess:
     # Orchestrate the events
     process_builder.on_input_event("Start").send_event_to(
         target=determine_affected_systems_step,
-        parameter_name="alarm",
+        parameter_name="params",
     )
 
     # this passes the number of fan out steps to the final recommendation step that the
