@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 
 from app.process_framework.steps.final_recommendation import FinalRecommendationParameters
 from app.services.agents import get_create_agent_manager
+from app.process_framework.utilities.utilities import call_agent, on_intermediate_message
 
 logger = logging.getLogger("uvicorn.error")
 tracer = trace.get_tracer(__name__)
@@ -55,26 +56,15 @@ You are a helpful assistant that retrieves alarm documentation. Look in your doc
     @kernel_function(name=Functions.RetrieveAlarmDocumentation)
     async def retrieve_alarm_documentation(self, context: KernelProcessStepContext, params: RetrieveAlarmDocumentationParameters):
         logger.debug(f"Retrieving alarm documentation for: {params.alarm} with systems number: {params.systems_number}")
-        agent_manager = get_create_agent_manager()
-        
-        agent = None
-        for a in agent_manager:
-            if a.name == "alarm-agent":
-                agent = a
-                break
-
-        if not agent:
-            return f"alarm-agent not found."
 
         self.state.chat_history.add_user_message(f"Retrieve alarm documentation for {params.alarm}.") # type: ignore
 
-        final_response = ""
         try:
-            async for response in agent.invoke(
-                messages=self.state.chat_history.messages, # type: ignore
+            final_response = await call_agent(
+                agent_name="alarm-agent",
+                chat_history=self.state.chat_history, # type: ignore
                 on_intermediate_message=on_intermediate_message
-            ): 
-                final_response += response.content.content
+            )
         except Exception as e:
             final_response = f"Error retrieving alarm documentation: {e}"
             logger.error(f"Error retrieving alarm documentation: {e}")
@@ -84,7 +74,6 @@ You are a helpful assistant that retrieves alarm documentation. Look in your doc
                     alarm=params.alarm,
                     systems_number=params.systems_number,
                     error_message=str(e),
-                    documentation=""
                 )
             )
 
@@ -97,20 +86,10 @@ You are a helpful assistant that retrieves alarm documentation. Look in your doc
             data=FinalRecommendationParameters(
                 alarm=params.alarm,
                 systems_number=params.systems_number,
-                error_message="",
                 documentation=final_response
             )            
         )
     
-async def on_intermediate_message(message: ChatMessageContent) -> None:
-    for item in message.items or []:
-        if isinstance(item, FunctionCallContent):
-            logger.debug(f"Function Call:> {item.name} with arguments: {item.arguments}")
-        elif isinstance(item, FunctionResultContent):
-            logger.debug(f"Function Result:> {item.result} for function: {item.name}")
-        else:
-            logger.debug(f"{message.role}: {message.content}")
-
 __all__ = [
     "RetrieveAlarmDocumentationStep",
     "RetrieveAlarmDocumentationParameters",

@@ -1,5 +1,5 @@
 import asyncio
-from typing import ClassVar
+from typing import ClassVar, Final
 import logging
 from opentelemetry import trace
 from enum import StrEnum, auto
@@ -16,19 +16,22 @@ from semantic_kernel.processes.kernel_process import KernelProcessStep, KernelPr
 #from semantic_kernel.processes.local_runtime import KernelProcessEvent, start
 from semantic_kernel.kernel_pydantic import KernelBaseModel
 
+from app.process_framework.utilities.utilities import call_agent, on_intermediate_message
+
 logger = logging.getLogger("uvicorn.error")
 tracer = trace.get_tracer(__name__)
 
 class FinalRecommendationParameters(BaseModel):
     alarm: str
     systems_number: int
-    error_message: str
-    documentation: str
+    error_message: str = ""
+    documentation: str = ""
 
 class FinalRecommendationState(KernelBaseModel):
     count_of_affected_systems: int = 0
     affected_systems: list[str] = []
     final_answer: str = ""
+    chat_history: ChatHistory | None = None
 
 @kernel_process_step_metadata("FinalRecommendationStep")
 class FinalRecommendationStep(KernelProcessStep[FinalRecommendationState]):
@@ -41,9 +44,17 @@ class FinalRecommendationStep(KernelProcessStep[FinalRecommendationState]):
     class OutputEvents(StrEnum):
         FinalRecommendationComplete = auto()
         AffectedSystemAnalysisRecieved = auto()
+        FinalRecommendationError = auto()
+
+    system_prompt: ClassVar[str] = """
+You are a helpful assistant that summarizes the results from alarm analysis and provides a final recommendation based on the affected systems.
+"""
 
     async def activate(self, state: KernelProcessStepState[FinalRecommendationState]):
         self.state = state.state # type: ignore
+        if self.state.chat_history is None: # type: ignore
+            self.state.chat_history = ChatHistory(system_message=self.system_prompt) # type: ignore
+        self.state.chat_history # type: ignore
 
     @tracer.start_as_current_span(Functions.SetCountOfAffectedSystems)
     @kernel_function(name=Functions.SetCountOfAffectedSystems)
@@ -63,7 +74,31 @@ class FinalRecommendationStep(KernelProcessStep[FinalRecommendationState]):
 
             logger.debug(f"Final recommendation: {self.state.affected_systems}")
 
-            self.state.final_answer = f"Final recommendation for alarm: {params.alarm} is to check the following systems: {', '.join(self.state.affected_systems)}"
+            self.state.chat_history.add_user_message(f"Retrieve final recommendation for {params.alarm}. Use the following systems: {', '.join(self.state.affected_systems)}") # type: ignore
+
+            try:
+                final_response = await call_agent(
+                    agent_name="alarm-agent",
+                    chat_history=self.state.chat_history, # type: ignore
+                    on_intermediate_message=on_intermediate_message
+                )
+            except Exception as e:
+                final_response = f"Error retrieving final recommendation: {e}"
+                logger.error(f"Error retrieving final recommendation: {e}")
+                await context.emit_event(
+                    process_event=self.OutputEvents.FinalRecommendationError,
+                    data=FinalRecommendationParameters(
+                        alarm=params.alarm,
+                        systems_number=params.systems_number,
+                        error_message=str(e),
+                    )
+                )
+
+            logger.debug(f"Final response: {final_response}")
+
+            self.state.chat_history.add_assistant_message(final_response) # type: ignore
+
+            self.state.final_answer = final_response.strip()
 
             await context.emit_event(
                 process_event=self.OutputEvents.FinalRecommendationComplete,
@@ -78,4 +113,6 @@ class FinalRecommendationStep(KernelProcessStep[FinalRecommendationState]):
     
 __all__ = [
     "FinalRecommendationStep",
+    "FinalRecommendationParameters",
+    "FinalRecommendationState",
 ]
