@@ -76,8 +76,6 @@ You are a helpful assistant that summarizes the results from alarm analysis and 
         self.state.affected_systems.append(params.alarm)
 
         if len(self.state.affected_systems) == self.state.count_of_affected_systems:
-            await asyncio.sleep(5)
-
             logger.debug(f"Final recommendation: {self.state.affected_systems}")
 
             self.state.chat_history.add_user_message(  # type: ignore
