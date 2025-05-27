@@ -1,10 +1,12 @@
 from asyncio import Queue
 from fastapi import WebSocket
 
+
 class Connection:
     def __init__(self, websocket: WebSocket, queue: Queue):
         self.websocket = websocket
         self.queue = queue
+
 
 class ConnectionManager:
     def __init__(self):
@@ -32,5 +34,6 @@ class ConnectionManager:
         if client_id in self.active_connections:
             return self.active_connections[client_id].queue
         return None
+
 
 __all__ = ["ConnectionManager"]

@@ -26,7 +26,7 @@
 # async def build_chat_results(chat_input: ChatInput, azure_ai_client: AIProjectClient):
 #     with tracer.start_as_current_span(name="build_chat_results"):
 #         alarm_agent = None
-#         try:        
+#         try:
 #             kernel = Kernel()
 
 #             alarm_agent = await create_alarm_agent(
@@ -38,9 +38,9 @@
 #                 plugin=AlarmPlugin(
 #                 ),
 #                 plugin_name="alarm_plugin"
-#             )           
+#             )
 #             thread = await get_agent_thread(chat_input, azure_ai_client, alarm_agent)
-                 
+
 #             async for response in alarm_agent.invoke_stream(
 #                     thread=thread,
 #                     messages=chat_input.content
@@ -53,7 +53,7 @@
 #                                 content=response.content.content,
 #                                 thread_id=str(response.thread.id),
 #                             ),
-#                             default=serialize_chat_output,                    
+#                             default=serialize_chat_output,
 #                         )
 #                     elif isinstance(item, StreamingFileReferenceContent):
 #                         yield json.dumps(
@@ -62,11 +62,11 @@
 #                                 content=item.file_id if item.file_id else "",
 #                                 thread_id=str(response.thread.id),
 #                             ),
-#                             default=serialize_chat_output,                    
+#                             default=serialize_chat_output,
 #                         )
 #                     else:
 #                         logger.warning(f"Unknown content type: {type(item)}")
-            
+
 #             await azure_ai_client.agents.delete_agent(agent_id=alarm_agent.id)
 #         except Exception as e:
 #             logger.error(f"Error processing chat: {e}")
@@ -91,7 +91,7 @@
 #                 thread_id=chat_input.thread_id,
 #                 messages=messages
 #             )
-    
+
 #     return thread
 
 # async def get_thread(thread_input: ChatGetThreadInput, azure_ai_client: AIProjectClient):

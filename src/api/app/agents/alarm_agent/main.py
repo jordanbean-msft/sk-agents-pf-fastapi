@@ -1,26 +1,20 @@
 import logging
-from datetime import datetime
 import os
-from pydoc import cli
 
 from semantic_kernel import Kernel
-from semantic_kernel.agents import AzureAIAgent
+from semantic_kernel.agents.azure_ai.azure_ai_agent import AzureAIAgent
 from azure.ai.agents.models import CodeInterpreterTool
 from azure.ai.agents.models import FileSearchTool
 from azure.ai.agents.models import ToolSet
 from azure.ai.agents.models import FilePurpose
-from azure.ai.agents.models import (
-    ResponseFormatJsonSchema,
-    ResponseFormatJsonSchemaType,
-)
 
 from app.config import get_settings
-from app.models.chat_output_message import ChatOutputMessage
 from app.services.dependencies import AIProjectClient
 
 logger = logging.getLogger("uvicorn.error")
 
-async def setup_file_search_tool(client: AIProjectClient, kernel: Kernel) -> FileSearchTool:
+
+async def setup_file_search_tool(client: AIProjectClient) -> FileSearchTool:
     file_search_tool = None
 
     try:
@@ -48,9 +42,10 @@ async def setup_file_search_tool(client: AIProjectClient, kernel: Kernel) -> Fil
     # create file search tool
     file_search_tool = FileSearchTool(
         vector_store_ids=[vector_store.id],
-    )            
+    )
 
     return file_search_tool
+
 
 async def create_alarm_agent(client: AIProjectClient, kernel: Kernel) -> AzureAIAgent:
     azure_ai_agent = None
@@ -70,7 +65,7 @@ async def create_alarm_agent(client: AIProjectClient, kernel: Kernel) -> AzureAI
         logger.info("Creating new alarm-agent...")
         code_interpreter = CodeInterpreterTool()
 
-        file_search_tool = await setup_file_search_tool(client, kernel)
+        file_search_tool = await setup_file_search_tool(client)
 
         toolset = ToolSet()
         toolset.add(code_interpreter)
@@ -79,7 +74,7 @@ async def create_alarm_agent(client: AIProjectClient, kernel: Kernel) -> AzureAI
         agent_definition = await client.agents.create_agent(
             model=get_settings().azure_openai_model_deployment_name,
             name="alarm-agent",
-            instructions=f"""
+            instructions="""
             You are a helpful assistant that can read alarms & make recommendations.
             """,
             toolset=toolset,

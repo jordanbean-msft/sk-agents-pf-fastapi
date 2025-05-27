@@ -44,7 +44,7 @@
 # if "thread_id" not in st.session_state:
 #     with st.spinner("Creating thread..."):
 #         thread_id = create_thread()
-#         st.session_state.thread_id = thread_id        
+#         st.session_state.thread_id = thread_id
 
 # def render_response(response):
 #     full_delta_content = ""
@@ -62,11 +62,11 @@
 #                 # elif delta.content.startswith("```"):
 #                 #     st.code(full_delta_content)
 #                 # else:
-#                 st.markdown(full_delta_content)                                    
+#                 st.markdown(full_delta_content)
 #             elif delta.content_type == ContentTypeEnum.FILE:
 #                 image = get_image(file_id=delta.content)
 #                 st.image(image=image, use_container_width=True)
-#                 images.append(image)                                
+#                 images.append(image)
 
 #     st.session_state.messages.add_assistant_message(full_delta_content)
 
@@ -75,7 +75,7 @@
 #                                     role=AuthorRole.ASSISTANT,
 #                                     items=[
 #                                         ImageContent(data=image)
-#                                     ]    
+#                                     ]
 #                                 )
 #         st.session_state.messages.add_message(content)
 
@@ -113,9 +113,9 @@
 
 #                 with st.empty():
 #                     question_text = str(audio_transcription)
-                    
+
 #                     st.markdown(question_text)
-                            
+
 #                 st.session_state.messages.add_user_message(question_text)
 
 #         response(question_text)
@@ -126,7 +126,7 @@
 #         st.write(st.session_state.thread_id)
 
 #     display_chat_history()
-   
+
 #     if question := st.chat_input(
 #         placeholder="Ask me...",
 #         on_submit=_handle_user_interaction,
@@ -141,50 +141,46 @@
 #         response(question)
 #     # with bottom():
 #     #     audio_chat()
-       
+
 # if st.session_state["waiting_for_response"]:
 #     st.session_state["waiting_for_response"] = False
 #     st.rerun()
 
 
-import time  
-import uuid  
-import streamlit as st  
-from streamlit_extras.bottom_container import bottom
-from utils import get_user_chats, get_system_chats, push_to_event_hub  # Assuming these functions are defined in utils.py
-
-import os
 import time
+
 import threading
-#import websockets
-import websocket
-import asyncio
 import queue
-from streamlit_autorefresh import st_autorefresh
 import json
+import websocket
+from streamlit_autorefresh import st_autorefresh
+
+import streamlit as st
+from streamlit_extras.bottom_container import bottom
 
 from config import get_settings
+from utils import get_user_chats, get_system_chats, push_to_event_hub
 
-st.set_page_config(layout="wide")  
+st.set_page_config(layout="wide")
 
 st.title("Alarm Agent")
 
 websocket.enableTrace(True)
 
-# 1) Initialize session_state  
-if 'my_chats' not in st.session_state:  
-    st.session_state.my_chats =get_user_chats()
+# 1) Initialize session_state
+if 'my_chats' not in st.session_state:
+    st.session_state.my_chats = get_user_chats()
 
-if 'sys_chats' not in st.session_state:  
-    st.session_state.sys_chats = [] #get_system_chats("user_id")
+if 'sys_chats' not in st.session_state:
+    st.session_state.sys_chats = []  # get_system_chats("user_id")
 
-if 'active_chat_key' not in st.session_state:  
-    # tuple of ("my" or "sys", chat_name)  
-    st.session_state.active_chat_key = None 
+if 'active_chat_key' not in st.session_state:
+    # tuple of ("my" or "sys", chat_name)
+    st.session_state.active_chat_key = None
 
-if 'logs' not in st.session_state:  
-    st.session_state.logs = []  
-    
+if 'logs' not in st.session_state:
+    st.session_state.logs = []
+
 if 'msg_queue' not in st.session_state:
     st.session_state.msg_queue = queue.Queue()
 
@@ -195,7 +191,7 @@ if 'msg_queue' not in st.session_state:
 #         #remove the protocol from the environment variable
 #         raw_uri = base_uri.replace("https://", "").replace("http://", "")
 #         uri = f"ws://{raw_uri}/v1/alarm/1"
-#         async with websockets.connect(uri) as ws:            
+#         async with websockets.connect(uri) as ws:
 #             while True:
 #                 msg = await ws.recv()
 #                 q.put(msg)
@@ -206,7 +202,7 @@ if 'msg_queue' not in st.session_state:
 #     t.start()
 #     st.session_state.ws_thread = t
 
-#def on_message(ws, message):
+# def on_message(ws, message):
 #    st.session_state.msg_queue.put(message)
 
 # Use a closure to pass msg_queue to on_message
@@ -215,15 +211,18 @@ def make_on_message(msg_queue):
         msg_queue.put(message)
     return on_message
 
+
 def on_error(ws, error):
     print(f"WebSocket Error: {error}")
+
 
 def on_close(ws, close_status_code, close_msg):
     print("WebSocket connection closed")
 
+
 def run_websocket(msg_queue):
     base_uri = get_settings().services__api__api__0
-    #remove the protocol from the environment variable
+    # remove the protocol from the environment variable
     raw_uri = base_uri.replace("https://", "").replace("http://", "")
     uri = f"ws://{raw_uri}/v1/alarm/1"
     ws = websocket.WebSocketApp(
@@ -232,13 +231,14 @@ def run_websocket(msg_queue):
         on_error=on_error,
         on_close=on_close
     )
-    
+
     ws.run_forever()
     print("WebSocket thread started")
 
+
 if 'ws_thread' not in st.session_state:
     t = threading.Thread(
-        target=run_websocket, 
+        target=run_websocket,
         args=(st.session_state.msg_queue,),
         daemon=True)
     t.start()
@@ -246,30 +246,30 @@ if 'ws_thread' not in st.session_state:
 
     # The rest of the code remains unchanged
 while not st.session_state.msg_queue.empty():
-    st.session_state.sys_chats.insert(0,json.loads(st.session_state.msg_queue.get()))
-    
+    st.session_state.sys_chats.insert(0, json.loads(st.session_state.msg_queue.get()))
+
 st_autorefresh(interval=5000, key="ws_refresh")
 
-st.markdown("""  
-<style>  
-  /* 1a) Full‑width buttons in the sidebar */  
-  [data-testid="stSidebar"] div[data-testid="stButton"] > button {  
-    width: 100% !important;  
-    text-align: left;  
-    padding: 0.5rem 1rem;  
-    margin-bottom: 0.25rem;  
-  }  
-  /* 1b) Highlight specific chats */  
-  [data-testid="stSidebar"] div[data-testid="stButton"] > button[aria-label="Chat A"] {  
-    background-color: #e0f7fa !important;  /* pale cyan */  
-    border: 1px solid #26c6da;  
-  }  
-  [data-testid="stSidebar"] div[data-testid="stButton"] > button[aria-label="Chat B"] {  
-    background-color: #ffebee !important;  /* pale red */  
-    border: 1px solid #ef5350;  
-  }  
-</style>  
-""", unsafe_allow_html=True)  
+st.markdown("""
+<style>
+  /* 1a) Full‑width buttons in the sidebar */
+  [data-testid="stSidebar"] div[data-testid="stButton"] > button {
+    width: 100% !important;
+    text-align: left;
+    padding: 0.5rem 1rem;
+    margin-bottom: 0.25rem;
+  }
+  /* 1b) Highlight specific chats */
+  [data-testid="stSidebar"] div[data-testid="stButton"] > button[aria-label="Chat A"] {
+    background-color: #e0f7fa !important;  /* pale cyan */
+    border: 1px solid #26c6da;
+  }
+  [data-testid="stSidebar"] div[data-testid="stButton"] > button[aria-label="Chat B"] {
+    background-color: #ffebee !important;  /* pale red */
+    border: 1px solid #ef5350;
+  }
+</style>
+""", unsafe_allow_html=True)
 raw_api_base_url = get_settings().services__api__api__0
 history = []
 selected_tab = st.sidebar.radio("Navigate", ["Chat", "Event Creation"])
@@ -309,6 +309,6 @@ elif selected_tab == "Event Creation":
         message = push_to_event_hub()
         st.json(message)
         time.sleep(2)
-    
+
     else:
         st.info("Press the button above to create a new event.")

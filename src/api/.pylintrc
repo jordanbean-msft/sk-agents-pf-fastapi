@@ -1,0 +1,8 @@
+[MESSAGES CONTROL]
+disable=
+    logging-fstring-interpolation,
+    missing-module-docstring,
+    missing-function-docstring,
+    missing-class-docstring,
+    broad-exception-caught,
+    too-few-public-methods,
