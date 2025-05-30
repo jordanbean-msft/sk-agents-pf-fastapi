@@ -148,7 +148,7 @@
 
 
 import time
-
+import requests # Added import
 import threading
 import queue
 import json
@@ -160,7 +160,7 @@ import streamlit as st
 from streamlit_extras.bottom_container import bottom
 
 from config import get_settings
-from utils import get_user_chats, get_system_chats, push_to_event_hub
+from utils import get_user_chats, get_thread, push_to_event_hub, get_chat_title, update_cosmos_record, add_thread_entry_to_cosmos
 
 st.set_page_config(layout="wide")
 
@@ -168,12 +168,17 @@ st.title("Alarm Agent")
 
 websocket.enableTrace(True)
 
+user_id = st.session_state.get("user_id", "default_user")
+
 # 1) Initialize session_state
 if 'my_chats' not in st.session_state:
-    st.session_state.my_chats = get_user_chats()
+    all_chats = get_user_chats(user_id)
+    user_chats = [chat for chat in all_chats if chat["chat_type"] == "USER"]
+    sys_chats = [chat for chat in all_chats if chat["chat_type"] == "SYSTEM"]
+    st.session_state.my_chats = user_chats
+    st.session_state.sys_chats = sys_chats
+    print(f"User Chats: {len(st.session_state.my_chats)}")
 
-if 'sys_chats' not in st.session_state:
-    st.session_state.sys_chats = []  # get_system_chats("user_id")
 
 if 'active_chat_key' not in st.session_state:
     # tuple of ("my" or "sys", chat_name)
@@ -184,6 +189,15 @@ if 'logs' not in st.session_state:
 
 if 'msg_queue' not in st.session_state:
     st.session_state.msg_queue = queue.Queue()
+
+if 'thread_id' not in st.session_state:
+    st.session_state.thread_id = None
+    
+if 'active_chat_title' not in st.session_state:
+    st.session_state.active_chat_title = None
+
+if 'current_chat_display_messages' not in st.session_state: # Added for main chat display
+    st.session_state.current_chat_display_messages = []
 
 
 # def ws_reader(q):
@@ -205,6 +219,9 @@ if 'msg_queue' not in st.session_state:
 
 # def on_message(ws, message):
 #    st.session_state.msg_queue.put(message)
+
+from dotenv import load_dotenv
+import os
 
 # Use a closure to pass msg_queue to on_message
 def make_on_message(msg_queue):
@@ -250,11 +267,12 @@ if 'ws_thread' not in st.session_state:
     t.start()
     st.session_state.ws_thread = t
 
+
     # The rest of the code remains unchanged
 while not st.session_state.msg_queue.empty():
     st.session_state.sys_chats.insert(0, json.loads(st.session_state.msg_queue.get()))
 
-st_autorefresh(interval=5000, key="ws_refresh")
+# st_autorefresh(interval=5000)
 
 st.markdown("""
 <style>
@@ -276,39 +294,144 @@ st.markdown("""
   }
 </style>
 """, unsafe_allow_html=True)
-raw_api_base_url = get_settings().services__api__api__0
+
+try:
+    raw_api_base_url = get_settings().services__api__api__0
+except Exception as e:
+    raw_api_base_url = ""
+    load_dotenv(override=True)
+    raw_api_base_url = os.environ['API_ENDPOINT']    
+    raw_api_key = os.environ['API_KEY']
+    agent_id = os.environ['AGENT_ID']
+    foundry_endpoint = os.environ['FOUNDRY_ENDPOINT']
+
+
+
 history = []
 selected_tab = st.sidebar.radio("Navigate", ["Chat", "Event Creation"])
+
 
 if selected_tab == "Chat":
     # — your existing sidebar chat‑list code —
     st.sidebar.markdown("#### System Chats")
-    for chat in reversed(st.session_state.sys_chats):
-        st.markdown(chat["content"], unsafe_allow_html=True)
-    # for chat in st.session_state.sys_chats:
-    #     if st.sidebar.button(chat["chat_title"], key=f"sid_sys_{chat['chat_title']}"):
-    #         st.session_state.active_chat_key = ("sys", chat["chat_title"])
-    # st.sidebar.markdown("---")
-    # st.sidebar.markdown("#### My Chats")
-    # for chat in st.session_state.my_chats:
-    #     if st.sidebar.button(chat["chat_title"], key=f"sid_my_{chat['chat_title']}"):
-    #         st.session_state.active_chat_key = ("my", chat["chat_title"])
+    for chat in st.session_state.sys_chats:
+        if st.sidebar.button(chat["chat_title"], key=f"sid_sys_{chat['chat_title']}"):
+            messages = get_thread(chat["thread_id"], chat['foundry_endpoint'])
+            st.session_state.active_chat_key = ("sys", chat["chat_title"])
+            st.session_state.current_chat_display_messages = messages
+            st.session_state.thread_id = chat["thread_id"]
+            st.session_state.active_chat_title = chat["chat_title"]
 
-    # # — your existing chat‐history display code —
-    # if st.session_state.active_chat_key:
-    #     chat_type, chat_name = st.session_state.active_chat_key
-    #     chats = st.session_state.my_chats if chat_type == "my" else st.session_state.sys_chats
-    #     history = []
-    #     if st.session_state.active_chat_key:
-    #         history = next(c["messages"] for c in chats if c["chat_title"] == chat_name)
+    st.sidebar.markdown("#### User Chats")
+    for chat in st.session_state.my_chats:
+        if st.sidebar.button(chat["chat_title"], key=f"sid_sys_{chat['chat_title']}"):
+            
+            messages = get_thread(chat["thread_id"], chat['foundry_endpoint'])
+            st.session_state.active_chat_key = ("user", chat["chat_title"])
+            st.session_state.current_chat_display_messages = messages
+            st.session_state.thread_id = chat["thread_id"]
+            st.session_state.active_chat_title = chat["chat_title"]
 
-    # for msg in history:
-    #     with st.chat_message(msg["role"]):
-    #         st.markdown(msg["content"], unsafe_allow_html=True)
 
-    # — only here do we call bottom() —
-    with bottom():
-        prompt = st.chat_input("Chat")
+    # Display current interactive chat messages
+    for msg in st.session_state.current_chat_display_messages:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"], unsafe_allow_html=True)
+
+    # Chat Input + Streaming Response
+    if prompt := st.chat_input("Chat with the Virtual Operator"):
+
+     
+        st.session_state.current_chat_display_messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        with st.chat_message("assistant"):
+            placeholder = st.empty()
+            partial_response = ""
+
+            
+            # Ensure raw_api_base_url is available
+            if not raw_api_base_url:
+                placeholder.markdown("Error: API base URL is not configured.")
+            
+            if st.session_state.thread_id is None:
+                response = requests.post(
+                    f"{raw_api_base_url}/api/create_thread?code={raw_api_key}",
+
+                )
+                if response.status_code == 200:
+                    st.session_state.thread_id = response.json()
+                else:
+                    placeholder.markdown("Error: Unable to create thread.")
+
+                add_thread_entry_to_cosmos(
+                    agent_id=agent_id,
+                    thread_id=st.session_state.thread_id,
+                    foundry_endpoint=foundry_endpoint,
+                    user_id=user_id,
+                    chat_type="USER"
+                )
+
+            payload = {
+                "thread_id": st.session_state.thread_id,
+                "message": prompt
+            }
+            # Note: Adjust '/v1/chat/invoke' if your API endpoint is different
+            api_endpoint = f"{raw_api_base_url}/api/run_agent?code={raw_api_key}" 
+
+            try:
+                response = requests.post(
+                    api_endpoint,
+                    json=payload,
+                    stream=True
+                )
+                if response.status_code==200:
+                    for chunk in response.iter_content( decode_unicode=True):
+                        if chunk:
+                            partial_response += chunk
+                            placeholder.markdown(partial_response, unsafe_allow_html=True)
+
+                        else:
+                            continue
+
+            
+            except requests.exceptions.HTTPError as e:
+                error_message = f"Error from API: {e.response.status_code}"
+                try:
+                    error_detail = e.response.json() # Try to get JSON error detail
+                    if isinstance(error_detail, dict) and "detail" in error_detail:
+                            error_message += f" - {error_detail['detail']}"
+                    else:
+                        error_message += f" - {e.response.text[:200]}" # Fallback to raw text
+                except ValueError: # If response is not JSON
+                    error_message += f" - {e.response.text[:200]}"
+                partial_response = error_message
+                placeholder.markdown(partial_response)
+            except requests.exceptions.RequestException as e:
+                partial_response = f"Request failed: {e}"
+                placeholder.markdown(partial_response)
+            except Exception as e:
+                partial_response = f"An unexpected error occurred: {e}"
+                placeholder.markdown(partial_response)
+
+            # Ensure final response is displayed
+            placeholder.markdown(partial_response) 
+
+            if st.session_state.active_chat_title is None:
+                convo_string = f"User: {prompt}\nAssistant: {partial_response}"
+                chat_title = get_chat_title(convo_string)
+                st.session_state.active_chat_title = chat_title
+
+                update_obj = {'chat_title': chat_title}
+                update_cosmos_record(st.session_state.thread_id, user_id, **update_obj)
+        
+            # Indicate that the response is complete
+            st.session_state.is_streaming = False
+
+
+            
+        st.session_state.current_chat_display_messages.append({"role": "assistant", "content": partial_response})
 
 elif selected_tab == "Event Creation":
     if st.button("Create Event"):
