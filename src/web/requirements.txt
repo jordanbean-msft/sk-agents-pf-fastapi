@@ -1,4 +1,4 @@
-streamlit==1.44.1
+streamlit==1.54.0
 requests==2.32.3
 pydantic==2.11.3
 semantic-kernel[azure,realtime]==1.28.1
